@@ -55,6 +55,8 @@ DEFAULT_CONFIG = {
     "hash_algorithm": "md5",
     "run_on_startup": False,
     "use_external": False,
+    # extra_folders is a list of dicts: {"name": str, "location": "car"|"dest"}
+    # older configs may store just a list of folder names
     "extra_folders": [],
     "backup_enabled": False,
     "backup_folder": "",
@@ -79,6 +81,19 @@ def load_config():
                     if "external_folder" in data and "extra_folders" not in data:
                         ef = data.get("external_folder")
                         data["extra_folders"] = [ef] if ef else []
+                    # normalise extra_folders format
+                    ext = data.get("extra_folders")
+                    if isinstance(ext, list):
+                        new_ext = []
+                        for item in ext:
+                            if isinstance(item, str):
+                                new_ext.append({"name": item, "location": "car"})
+                            elif isinstance(item, dict):
+                                name = item.get("name") or item.get("folder")
+                                loc = item.get("location", "car")
+                                if name:
+                                    new_ext.append({"name": name, "location": loc})
+                        data["extra_folders"] = new_ext
                     cfg.update(data)
         except Exception:
             pass
@@ -88,6 +103,19 @@ def load_config():
 def save_config(cfg):
     try:
         cfg.pop("external_folder", None)
+        # ensure extra_folders are stored as list of dicts
+        ext = cfg.get("extra_folders", [])
+        if isinstance(ext, list):
+            norm = []
+            for item in ext:
+                if isinstance(item, str):
+                    norm.append({"name": item, "location": "car"})
+                elif isinstance(item, dict):
+                    name = item.get("name") or item.get("folder")
+                    loc = item.get("location", "car")
+                    if name:
+                        norm.append({"name": name, "location": loc})
+            cfg["extra_folders"] = norm
         with open(CONFIG_FILE, "w", encoding="utf-8") as f:
             json.dump(cfg, f, ensure_ascii=False, indent=4)
     except Exception:
@@ -306,9 +334,23 @@ def copy_missing_files(src, dst, copy_all=False):
             continue
         if not copy_all and not item.lower().endswith(".sto"):
             continue
-        if not os.path.exists(d):
-            os.makedirs(os.path.dirname(d), exist_ok=True)
-            shutil.copy2(s, d)
+    if not os.path.exists(d):
+        os.makedirs(os.path.dirname(d), exist_ok=True)
+        shutil.copy2(s, d)
+
+
+def copy_flat_files(src, dst, algorithm="md5", copy_all=False):
+    """Copy files from ``src`` and its subfolders directly into ``dst``."""
+    os.makedirs(dst, exist_ok=True)
+    for root, _, files in os.walk(src):
+        for name in files:
+            if not copy_all and not name.lower().endswith(".sto"):
+                continue
+            s = os.path.join(root, name)
+            d = os.path.join(dst, name)
+            if not os.path.exists(d) or calc_hash(s, algorithm) != calc_hash(d, algorithm):
+                os.makedirs(os.path.dirname(d), exist_ok=True)
+                shutil.copy2(s, d)
 
 
 def backup_iracing_folder(ir_folder, backup_folder, copy_all=False):
@@ -332,6 +374,7 @@ def sync_team_folders(
     copy_all=False,
     drivers=None,
     driver_style=False,
+    skip_folders=None,
 ):
     """Copy source subfolder ``src_name`` to ``dest_name`` for each car.
 
@@ -345,7 +388,7 @@ def sync_team_folders(
             continue
         src = os.path.join(car_dir, src_name)
         dest_root = os.path.join(car_dir, dest_name)
-        if not os.path.exists(src):
+        if not os.path.isdir(src) or not os.listdir(src):
             continue
 
         if drivers and driver_style:
@@ -389,16 +432,19 @@ def sync_team_folders(
                 dest_root,
                 algorithm,
                 copy_all=copy_all,
-                ignore_dirs={"Data packs", COMMON_FOLDER, DRIVERS_ROOT},
+                ignore_dirs={"Data packs", COMMON_FOLDER, DRIVERS_ROOT} | skip_folders,
             )
+            dp_root = os.path.join(dest_root, "Data packs")
+            if os.path.isdir(dp_root):
+                shutil.rmtree(dp_root, ignore_errors=True)
         elif drivers:
             common = os.path.join(dest_root, COMMON_FOLDER)
-            sync_folders(src, common, algorithm, copy_all=copy_all)
+            sync_folders(src, common, algorithm, copy_all=copy_all, ignore_dirs=skip_folders)
             for name in drivers:
                 dpath = os.path.join(dest_root, DRIVERS_ROOT, name)
                 copy_missing_files(src, dpath, copy_all)
         else:
-            sync_folders(src, dest_root, algorithm, copy_all=copy_all)
+            sync_folders(src, dest_root, algorithm, copy_all=copy_all, ignore_dirs=skip_folders)
 
 
 def remove_unknown_driver_folders(iracing_folder, dest_name, drivers):
@@ -421,6 +467,7 @@ def merge_external_into_source(
     iracing_folder,
     ext_names,
     src_name,
+    dest_name,
     algorithm="md5",
     copy_all=False,
     drivers=None,
@@ -428,55 +475,61 @@ def merge_external_into_source(
 ):
     """Copy one or more external folders into the source folder for each car.
 
-    Each folder name in ``ext_names`` will be copied from ``<car>/<name>`` to
-    ``<car>/<src_name>/<name>`` without removing existing files. When
-    ``driver_style`` is ``True`` the folders are copied into ``Common Setups``
-    and each driver directory inside ``src_name``.
+    ``ext_names`` may be a list of dicts with ``name`` and ``location`` keys.
+    ``location`` can be ``"car"`` for a folder directly inside the car directory
+    or ``"dest"`` for a folder located inside the sync destination folder.
+
+    Each folder is merged into ``<car>/<src_name>/<name>`` without deleting
+    existing files. When ``driver_style`` is ``True`` the folders are also
+    copied into ``Common Setups`` and each driver directory inside ``src_name``.
     """
     if isinstance(ext_names, str):
-        ext_names = [ext_names]
-
+        ext_names = [{"name": ext_names, "location": "car"}]
+    elif isinstance(ext_names, list):
+        fixed = []
+        for item in ext_names:
+            if isinstance(item, str):
+                fixed.append({"name": item, "location": "car"})
+            elif isinstance(item, dict):
+                name = item.get("name") or item.get("folder")
+                loc = item.get("location", "car")
+                if name:
+                    fixed.append({"name": name, "location": loc})
+        ext_names = fixed
+    else:
+        return
     for car in os.listdir(iracing_folder):
         car_dir = os.path.join(iracing_folder, car)
         if not os.path.isdir(car_dir):
             continue
-        for ext_name in ext_names:
-            ext = os.path.join(car_dir, ext_name)
+        for ext_def in ext_names:
+            folder_name = ext_def.get("name")
+            loc = ext_def.get("location", "car")
+            if loc == "dest":
+                ext = os.path.join(car_dir, dest_name, folder_name)
+            else:
+                ext = os.path.join(car_dir, folder_name)
             if not os.path.exists(ext):
                 continue
+            dst = os.path.join(car_dir, src_name, folder_name)
+            sync_folders(
+                ext,
+                dst,
+                algorithm,
+                delete_extras=False,
+                copy_all=copy_all,
+            )
             if driver_style and drivers is not None:
-                common_dst = os.path.join(car_dir, src_name, COMMON_FOLDER, ext_name)
-                sync_folders(
-                    ext,
-                    common_dst,
-                    algorithm,
-                    delete_extras=False,
-                    copy_all=copy_all,
-                )
-                for name in drivers:
-                    dst = os.path.join(
+                common_root = os.path.join(car_dir, src_name, COMMON_FOLDER)
+                copy_flat_files(ext, common_root, algorithm, copy_all)
+                for driver_name in drivers:
+                    drv_root = os.path.join(
                         car_dir,
                         src_name,
                         DRIVERS_ROOT,
-                        name,
-                        ext_name,
+                        driver_name,
                     )
-                    sync_folders(
-                        ext,
-                        dst,
-                        algorithm,
-                        delete_extras=False,
-                        copy_all=copy_all,
-                    )
-            else:
-                dst = os.path.join(car_dir, src_name, ext_name)
-                sync_folders(
-                    ext,
-                    dst,
-                    algorithm,
-                    delete_extras=False,
-                    copy_all=copy_all,
-                )
+                    copy_flat_files(ext, drv_root, algorithm, copy_all)
 
 
 def sync_data_pack_folders(
@@ -515,7 +568,7 @@ def sync_group_folders(
         source_path = None
         for car in cars:
             candidate = os.path.join(iracing_folder, car, src_name)
-            if os.path.exists(candidate):
+            if os.path.isdir(candidate) and os.listdir(candidate):
                 source_path = candidate
                 break
         if not source_path:
@@ -814,11 +867,13 @@ def perform_sync(ir_folder, cfg):
             cfg["drivers"] = [clean_name(n) for n in names if n]
             save_config(cfg)
 
+    extra_names = []
     if cfg.get("use_external") and cfg.get("extra_folders"):
         merge_external_into_source(
             ir_folder,
             cfg["extra_folders"],
             src_name,
+            dst_name,
             cfg["hash_algorithm"],
             cfg.get("copy_all", False),
             drivers=(
@@ -828,6 +883,11 @@ def perform_sync(ir_folder, cfg):
             ),
             driver_style=cfg.get("use_driver_folders", False),
         )
+        for item in cfg.get("extra_folders", []):
+            if isinstance(item, dict):
+                extra_names.append(clean_name(item.get("name")))
+            else:
+                extra_names.append(clean_name(str(item)))
 
     drivers = (
         [clean_name(n) for n in cfg.get("drivers", [])]
@@ -852,6 +912,7 @@ def perform_sync(ir_folder, cfg):
         cfg.get("copy_all", False),
         drivers,
         driver_style=cfg.get("use_driver_folders", False),
+        skip_folders=extra_names,
     )
     if not cfg.get("use_driver_folders"):
         sync_data_pack_folders(
@@ -1176,25 +1237,35 @@ def main():
             while len(self.extra_entries) < count:
                 idx = len(self.extra_entries) + 1
                 e = QtWidgets.QLineEdit()
+                cb = QtWidgets.QComboBox()
+                cb.addItems(["car", "dest"])
                 if idx <= len(self.cfg.get("extra_folders", [])):
-                    e.setText(self.cfg["extra_folders"][idx - 1])
+                    data = self.cfg["extra_folders"][idx - 1]
+                    if isinstance(data, dict):
+                        e.setText(data.get("name", ""))
+                        cb.setCurrentText(data.get("location", "car"))
+                    else:
+                        e.setText(str(data))
                 lbl = QtWidgets.QLabel(f"Extra Folder {idx} Name")
                 self.extra_layout.addWidget(lbl)
                 self.extra_layout.addWidget(e)
-                self.extra_entries.append((lbl, e))
+                self.extra_layout.addWidget(cb)
+                self.extra_entries.append((lbl, e, cb))
             while len(self.extra_entries) > count:
-                lbl, e = self.extra_entries.pop()
+                lbl, e, cb = self.extra_entries.pop()
                 lbl.deleteLater()
                 e.deleteLater()
+                cb.deleteLater()
 
         def update_extra_option_visibility(self):
             use_extra = self.external_check.isChecked()
             self.extra_count_label.setVisible(use_extra)
             self.extra_count_spin.setVisible(use_extra)
-            for lbl, _ in self.extra_entries:
+            for lbl, _, _ in self.extra_entries:
                 lbl.setVisible(use_extra)
-            for _, e in self.extra_entries:
+            for _, e, cb in self.extra_entries:
                 e.setVisible(use_extra)
+                cb.setVisible(use_extra)
 
         def update_driver_fields(self):
             count = (
@@ -1268,8 +1339,11 @@ def main():
                 "run_on_startup": self.startup_check.isChecked(),
                 "use_external": self.external_check.isChecked(),
                 "extra_folders": [
-                    clean_name(e.text())
-                    for _, e in self.extra_entries
+                    {
+                        "name": clean_name(e.text()),
+                        "location": cb.currentText(),
+                    }
+                    for _, e, cb in self.extra_entries
                     if e.text().strip()
                 ],
                 "copy_all": self.copy_all_check.isChecked(),
