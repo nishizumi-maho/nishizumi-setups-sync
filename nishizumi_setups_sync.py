@@ -8,6 +8,7 @@ startup and supports optional Garage61 integration and backup features.
 import os
 import sys
 import zipfile
+import tempfile
 
 try:
     import rarfile  # pragma: no cover - optional RAR support
@@ -278,14 +279,24 @@ def update_script():
     if not remote_ver:
         log("No update available")
         return False
+    script_path = os.path.abspath(sys.argv[0])
+    tmp_path = None
     try:
-        script_path = os.path.abspath(sys.argv[0])
-        with open(script_path, "w", encoding="utf-8") as f:
-            f.write(remote_text)
+        with tempfile.NamedTemporaryFile(
+            "w", encoding="utf-8", delete=False, dir=os.path.dirname(script_path)
+        ) as tmp:
+            tmp_path = tmp.name
+            tmp.write(remote_text)
+        os.replace(tmp_path, script_path)
         log(f"Updated to version {remote_ver}. Restart the program.")
         return True
     except Exception as e:
         log(f"Failed to write update: {e}")
+        if tmp_path and os.path.exists(tmp_path):
+            try:
+                os.unlink(tmp_path)
+            except Exception:
+                pass
         return False
 
 
