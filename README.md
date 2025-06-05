@@ -1,5 +1,8 @@
 # Nishizumi Setups Sync
 
+![Icon](icon.png)
+
+
 [**Download the latest release here**](https://github.com/nishizumi-maho/nishizumi-setups-sync/releases/latest)
 
 ## Setup Manager
