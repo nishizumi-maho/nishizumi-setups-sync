@@ -341,6 +341,22 @@ def sync_team_folders(
             sync_folders(src, dest_root, algorithm, copy_all=copy_all)
 
 
+def remove_unknown_driver_folders(iracing_folder, dest_name, drivers):
+    """Delete driver folders not present in ``drivers``."""
+    if drivers is None:
+        return
+    for car in os.listdir(iracing_folder):
+        car_dir = os.path.join(iracing_folder, car)
+        if not os.path.isdir(car_dir):
+            continue
+        root = os.path.join(car_dir, dest_name, DRIVERS_ROOT)
+        if not os.path.isdir(root):
+            continue
+        for folder in os.listdir(root):
+            if folder not in drivers:
+                shutil.rmtree(os.path.join(root, folder), ignore_errors=True)
+
+
 def merge_external_into_source(
     iracing_folder,
     ext_names,
@@ -696,6 +712,8 @@ def run_silent(cfg, ask=False):
             if cfg.get("use_driver_folders")
             else None
         )
+        if drivers is not None:
+            remove_unknown_driver_folders(ir_folder, dst_name, drivers)
         sync_nascar_source_folders(ir_folder, src_name, cfg["hash_algorithm"])
         sync_team_folders(
             ir_folder,
