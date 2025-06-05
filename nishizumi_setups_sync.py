@@ -780,6 +780,12 @@ def main():
             layout = QtWidgets.QVBoxLayout(container)
 
             layout.addWidget(QtWidgets.QLabel("Fill the options below and press Run."))
+            layout.addWidget(
+                QtWidgets.QLabel(
+                    "All folder names must be inside your iRacing setups folder."
+                    " Missing folders will be created automatically."
+                )
+            )
 
             self.iracing_entry = self._add_browse(
                 layout,
@@ -823,12 +829,12 @@ def main():
             )
             self.driver_entry = self._add_entry(
                 layout,
-                "Setup Supplier Name (inside team folder)",
+                "Setup Supplier Folder Name (inside team folder)",
                 self.cfg.get("driver_folder"),
             )
             self.season_entry = self._add_entry(
                 layout,
-                "Season Folder (inside driver folder)",
+                "Season Folder Name (inside supplier folder)",
                 self.cfg.get("season_folder"),
             )
 
