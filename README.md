@@ -71,10 +71,9 @@ running on a server), the script also falls back to silent mode.
 ## How to Use
 
 1. Run `python nishizumi_setups_sync.py` to open the interface.
-2. Select your **iRacing Setups Folder** and choose whether to import from a
+2. Select your **iRacing Setups Folder path** and choose whether to import from a
    ZIP file or from another folder.
-3. Fill in the team, personal, setup supplier and season folders as desired.
-   Folder names are cleaned to remove invalid characters and extra spaces.
+3. Fill in the team, personal, setup supplier and season folders as desired. **You shall only add the folder's name here**.
 4. Optionally enable backup or logging and choose where these files will be
    stored.
 5. Press **Run** to perform the import and sync. The settings are saved for the
