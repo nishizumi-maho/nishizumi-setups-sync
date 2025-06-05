@@ -41,7 +41,7 @@ else:
 
 CONFIG_FILE = os.path.join(_BASE_DIR, "user_config.json")
 MAP_FILE = os.path.join(_BASE_DIR, "custom_car_mapping.json")
-VERSION = "1.0.0"
+VERSION = "1.1.0"
 # Location of the latest script version for the self-update feature
 UPDATE_URL = "https://raw.githubusercontent.com/nishizumi-maho/nishizumi-setups-sync/main/nishizumi_setups_sync.py"
 
@@ -74,6 +74,15 @@ DEFAULT_CONFIG = {
     "use_garage61": False,
     "garage61_team_id": "",
     "garage61_api_key": "",
+    "active_profile": 0,
+    "profiles": [
+        {
+            "team_folder": "Example Team",
+            "personal_folder": "My Personal Folder",
+            "driver_folder": "Example Supplier",
+            "season_folder": "Example Season",
+        }
+    ],
 }
 
 
@@ -104,6 +113,24 @@ def load_config():
                         data.setdefault("backup_before_folder", data.get("backup_folder"))
                         data.setdefault("backup_after_folder", "")
                     cfg.update(data)
+                    if "profiles" not in cfg:
+                        profile = {
+                            "team_folder": cfg.get("team_folder", DEFAULT_CONFIG["team_folder"]),
+                            "personal_folder": cfg.get("personal_folder", DEFAULT_CONFIG["personal_folder"]),
+                            "driver_folder": cfg.get("driver_folder", DEFAULT_CONFIG["driver_folder"]),
+                            "season_folder": cfg.get("season_folder", DEFAULT_CONFIG["season_folder"]),
+                        }
+                        cfg["profiles"] = [profile]
+                        cfg["active_profile"] = 0
+                    if cfg.get("profiles"):
+                        idx = cfg.get("active_profile", 0)
+                        if idx >= len(cfg["profiles"]):
+                            idx = 0
+                        prof = cfg["profiles"][idx]
+                        cfg["team_folder"] = prof.get("team_folder", cfg.get("team_folder"))
+                        cfg["personal_folder"] = prof.get("personal_folder", cfg.get("personal_folder"))
+                        cfg["driver_folder"] = prof.get("driver_folder", cfg.get("driver_folder"))
+                        cfg["season_folder"] = prof.get("season_folder", cfg.get("season_folder"))
         except Exception:
             pass
     return cfg
@@ -128,6 +155,19 @@ def save_config(cfg):
                     if name:
                         norm.append({"name": name, "location": loc})
             cfg["extra_folders"] = norm
+        idx = cfg.get("active_profile", 0)
+        profiles = cfg.setdefault("profiles", [])
+        while len(profiles) <= idx:
+            profiles.append({})
+        profiles[idx].update(
+            {
+                "team_folder": cfg.get("team_folder", ""),
+                "personal_folder": cfg.get("personal_folder", ""),
+                "driver_folder": cfg.get("driver_folder", ""),
+                "season_folder": cfg.get("season_folder", ""),
+            }
+        )
+        cfg["profiles"] = profiles
         with open(CONFIG_FILE, "w", encoding="utf-8") as f:
             json.dump(cfg, f, ensure_ascii=False, indent=4)
     except Exception:
@@ -1073,6 +1113,24 @@ def main():
             layout.addWidget(self.mode_combo)
             self.mode_combo.currentTextChanged.connect(self.update_mode_fields)
 
+            prof_layout = QtWidgets.QHBoxLayout()
+            prof_label = QtWidgets.QLabel("Active Profile")
+            prof_layout.addWidget(prof_label)
+            self.profile_combo = QtWidgets.QComboBox()
+            for i in range(len(self.cfg.get("profiles", []))):
+                self.profile_combo.addItem(f"Profile {i+1}")
+            self.profile_combo.setCurrentIndex(self.cfg.get("active_profile", 0))
+            self.profile_combo.currentIndexChanged.connect(self.load_profile)
+            prof_layout.addWidget(self.profile_combo)
+            cnt_label = QtWidgets.QLabel("Number of profiles")
+            prof_layout.addWidget(cnt_label)
+            self.profile_count_spin = QtWidgets.QSpinBox()
+            self.profile_count_spin.setRange(1, 10)
+            self.profile_count_spin.setValue(len(self.cfg.get("profiles", [])))
+            self.profile_count_spin.valueChanged.connect(self.update_profile_count)
+            prof_layout.addWidget(self.profile_count_spin)
+            layout.addLayout(prof_layout)
+
             self.zip_entry = self._add_browse(
                 layout,
                 "Archive File to Import",
@@ -1108,6 +1166,7 @@ def main():
                 "Season Folder Name (inside supplier folder)",
                 self.cfg.get("season_folder"),
             )
+            self.update_profile_count()
 
             self.backup_check = QtWidgets.QCheckBox("Enable backup")
             self.backup_check.setChecked(self.cfg.get("backup_enabled", False))
@@ -1301,6 +1360,56 @@ def main():
                 e.deleteLater()
                 cb.deleteLater()
 
+        def update_profile_count(self):
+            count = self.profile_count_spin.value()
+            profiles = self.cfg.setdefault("profiles", [])
+            default = {
+                "team_folder": DEFAULT_CONFIG["team_folder"],
+                "personal_folder": DEFAULT_CONFIG["personal_folder"],
+                "driver_folder": DEFAULT_CONFIG["driver_folder"],
+                "season_folder": DEFAULT_CONFIG["season_folder"],
+            }
+            while len(profiles) < count:
+                profiles.append(default.copy())
+            while len(profiles) > count:
+                profiles.pop()
+            self.profile_combo.clear()
+            for i in range(count):
+                self.profile_combo.addItem(f"Profile {i+1}")
+            idx = min(self.cfg.get("active_profile", 0), count - 1)
+            self.profile_combo.setCurrentIndex(idx)
+            self.load_profile(idx)
+
+        def load_profile(self, idx):
+            profiles = self.cfg.get("profiles", [])
+            if 0 <= idx < len(profiles):
+                data = profiles[idx]
+            else:
+                data = {}
+            self.team_entry.setText(data.get("team_folder", ""))
+            self.personal_entry.setText(data.get("personal_folder", ""))
+            self.driver_entry.setText(data.get("driver_folder", ""))
+            self.season_entry.setText(data.get("season_folder", ""))
+
+        def save_current_profile(self):
+            idx = self.profile_combo.currentIndex()
+            profiles = self.cfg.setdefault("profiles", [])
+            default = {
+                "team_folder": "",
+                "personal_folder": "",
+                "driver_folder": "",
+                "season_folder": "",
+            }
+            while len(profiles) <= idx:
+                profiles.append(default.copy())
+            profiles[idx] = {
+                "team_folder": clean_name(self.team_entry.text()),
+                "personal_folder": clean_name(self.personal_entry.text()),
+                "driver_folder": clean_name(self.driver_entry.text()),
+                "season_folder": clean_name(self.season_entry.text()),
+            }
+            self.cfg["profiles"] = profiles
+
         def update_extra_option_visibility(self):
             use_extra = self.external_check.isChecked()
             self.extra_count_label.setVisible(use_extra)
@@ -1364,15 +1473,18 @@ def main():
                     self.copy_all_check.setChecked(False)
 
         def collect_config(self):
+            self.save_current_profile()
+            idx = self.profile_combo.currentIndex()
+            profile = self.cfg.get("profiles", [{}])[idx]
             return {
                 "iracing_folder": self.iracing_entry.text().strip(),
                 "source_type": self.mode_combo.currentText(),
                 "zip_file": self.zip_entry.text().strip(),
                 "source_folder": self.src_entry.text().strip(),
-                "team_folder": clean_name(self.team_entry.text()),
-                "personal_folder": clean_name(self.personal_entry.text()),
-                "driver_folder": clean_name(self.driver_entry.text()),
-                "season_folder": clean_name(self.season_entry.text()),
+                "team_folder": profile.get("team_folder", ""),
+                "personal_folder": profile.get("personal_folder", ""),
+                "driver_folder": profile.get("driver_folder", ""),
+                "season_folder": profile.get("season_folder", ""),
                 "sync_source": clean_name(self.sync_source_entry.text()),
                 "sync_destination": clean_name(self.sync_dest_entry.text()),
                 "backup_enabled": self.backup_check.isChecked(),
@@ -1401,6 +1513,8 @@ def main():
                 "use_garage61": self.garage_check.isChecked(),
                 "garage61_team_id": self.team_id_entry.text().strip(),
                 "garage61_api_key": self.api_key_entry.text().strip(),
+                "active_profile": idx,
+                "profiles": self.cfg.get("profiles", []),
             }
 
         def save_and_run(self):
