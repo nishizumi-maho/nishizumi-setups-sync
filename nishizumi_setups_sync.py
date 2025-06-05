@@ -49,6 +49,7 @@ DEFAULT_CONFIG = {
     "sync_source": "Example Source",
     "sync_destination": "Example Destination",
     "hash_algorithm": "md5",
+    "scramble_hash": False,
     "run_on_startup": False,
     "use_external": False,
     "extra_folders": [],
@@ -131,14 +132,35 @@ def clean_name(name):
     return "".join(c for c in name if c not in INVALID_CHARS)
 
 
-def copy_entry(src, dst):
+def scramble_file(path):
+    """Append random bytes to ``path`` so its hash changes."""
+    try:
+        with open(path, "ab") as f:
+            f.write(os.urandom(1))
+    except Exception as e:
+        log(f"[WARN] Failed to scramble '{path}': {e}")
+
+
+def scramble_directory(folder):
+    for root, _, files in os.walk(folder):
+        for name in files:
+            scramble_file(os.path.join(root, name))
+
+
+def copy_entry(src, dst, scramble=False):
     """Copy a file or directory preserving metadata."""
     try:
         if os.path.isdir(src):
             shutil.copytree(src, dst, dirs_exist_ok=True)
+            if scramble:
+                scramble_directory(dst)
+                scramble_directory(src)
         else:
             os.makedirs(os.path.dirname(dst), exist_ok=True)
             shutil.copy2(src, dst)
+            if scramble:
+                scramble_file(dst)
+                scramble_file(src)
         log(f"[COPIED] '{src}' -> '{dst}'")
     except Exception as e:
         log(f"[ERROR] Failed to copy '{src}' -> '{dst}': {e}")
@@ -198,7 +220,7 @@ def update_script():
         return False
 
 
-def sync_bidirectional(dir_a, dir_b, algorithm="md5"):
+def sync_bidirectional(dir_a, dir_b, algorithm="md5", scramble=False):
     """Synchronise contents of ``dir_a`` and ``dir_b`` in both directions."""
     os.makedirs(dir_a, exist_ok=True)
     os.makedirs(dir_b, exist_ok=True)
@@ -207,24 +229,24 @@ def sync_bidirectional(dir_a, dir_b, algorithm="md5"):
     items_b = set(os.listdir(dir_b))
 
     for item in items_a - items_b:
-        copy_entry(os.path.join(dir_a, item), os.path.join(dir_b, item))
+        copy_entry(os.path.join(dir_a, item), os.path.join(dir_b, item), scramble)
 
     for item in items_b - items_a:
-        copy_entry(os.path.join(dir_b, item), os.path.join(dir_a, item))
+        copy_entry(os.path.join(dir_b, item), os.path.join(dir_a, item), scramble)
 
     for item in items_a & items_b:
         pa = os.path.join(dir_a, item)
         pb = os.path.join(dir_b, item)
         if os.path.isdir(pa):
-            sync_bidirectional(pa, pb, algorithm)
+            sync_bidirectional(pa, pb, algorithm, scramble)
         else:
             ha = calc_hash(pa, algorithm)
             hb = calc_hash(pb, algorithm)
             if ha and hb and ha != hb:
                 if os.path.getmtime(pa) >= os.path.getmtime(pb):
-                    copy_entry(pa, pb)
+                    copy_entry(pa, pb, scramble)
                 else:
-                    copy_entry(pb, pa)
+                    copy_entry(pb, pa, scramble)
 
 
 def sync_folders(
@@ -233,6 +255,7 @@ def sync_folders(
     algorithm="md5",
     delete_extras=True,
     copy_all=False,
+    scramble=False,
 ):
     """Synchronise ``src`` and ``dst``.
 
@@ -248,7 +271,7 @@ def sync_folders(
         d = os.path.join(dst, item)
 
         if os.path.isdir(s):
-            sync_folders(s, d, algorithm, delete_extras, copy_all)
+            sync_folders(s, d, algorithm, delete_extras, copy_all, scramble)
             continue
 
         if not copy_all and not item.lower().endswith(".sto"):
@@ -259,10 +282,13 @@ def sync_folders(
         if not os.path.exists(d):
             copy = True
         else:
-            if calc_hash(s, algorithm) != calc_hash(d, algorithm):
+            if scramble or calc_hash(s, algorithm) != calc_hash(d, algorithm):
                 copy = True
         if copy:
             shutil.copy2(s, d)
+            if scramble:
+                scramble_file(d)
+                scramble_file(s)
 
     if delete_extras:
         # Remove files in destination that are not wanted or no longer present
@@ -279,20 +305,23 @@ def sync_folders(
                     os.remove(d)
 
 
-def copy_missing_files(src, dst, copy_all=False):
+def copy_missing_files(src, dst, copy_all=False, scramble=False):
     """Copy files from ``src`` to ``dst`` without overwriting existing ones."""
     os.makedirs(dst, exist_ok=True)
     for item in os.listdir(src):
         s = os.path.join(src, item)
         d = os.path.join(dst, item)
         if os.path.isdir(s):
-            copy_missing_files(s, d, copy_all)
+            copy_missing_files(s, d, copy_all, scramble)
             continue
         if not copy_all and not item.lower().endswith(".sto"):
             continue
         if not os.path.exists(d):
             os.makedirs(os.path.dirname(d), exist_ok=True)
             shutil.copy2(s, d)
+            if scramble:
+                scramble_file(d)
+                scramble_file(s)
 
 
 def backup_iracing_folder(ir_folder, backup_folder, copy_all=False):
@@ -315,6 +344,7 @@ def sync_team_folders(
     algorithm="md5",
     copy_all=False,
     drivers=None,
+    scramble=False,
 ):
     """Copy source subfolder ``src_name`` to ``dest_name`` for each car.
 
@@ -333,12 +363,12 @@ def sync_team_folders(
 
         if drivers:
             common = os.path.join(dest_root, COMMON_FOLDER)
-            sync_folders(src, common, algorithm, copy_all=copy_all)
+            sync_folders(src, common, algorithm, copy_all=copy_all, scramble=scramble)
             for name in drivers:
                 dpath = os.path.join(dest_root, DRIVERS_ROOT, name)
-                copy_missing_files(src, dpath, copy_all)
+                copy_missing_files(src, dpath, copy_all, scramble)
         else:
-            sync_folders(src, dest_root, algorithm, copy_all=copy_all)
+            sync_folders(src, dest_root, algorithm, copy_all=copy_all, scramble=scramble)
 
 
 def merge_external_into_source(
@@ -347,6 +377,7 @@ def merge_external_into_source(
     src_name,
     algorithm="md5",
     copy_all=False,
+    scramble=False,
 ):
     """Copy one or more external folders into the source folder for each car.
 
@@ -365,7 +396,7 @@ def merge_external_into_source(
             if not os.path.exists(ext):
                 continue
             dst = os.path.join(car_dir, src_name, ext_name)
-            sync_folders(ext, dst, algorithm, delete_extras=False, copy_all=copy_all)
+            sync_folders(ext, dst, algorithm, delete_extras=False, copy_all=copy_all, scramble=scramble)
 
 
 def sync_data_pack_folders(
@@ -375,6 +406,7 @@ def sync_data_pack_folders(
     algorithm="md5",
     copy_all=False,
     drivers=None,
+    scramble=False,
 ):
     """Synchronise the ``Data packs`` subfolder across all cars."""
     src_dp = os.path.join(src_team, "Data packs")
@@ -385,6 +417,7 @@ def sync_data_pack_folders(
         dest_dp,
         algorithm,
         copy_all,
+        scramble,
     )
     sync_team_folders(
         iracing_folder,
@@ -393,11 +426,12 @@ def sync_data_pack_folders(
         algorithm,
         copy_all,
         drivers,
+        scramble,
     )
 
 
 def sync_group_folders(
-    iracing_folder, src_name, dest_name, algorithm="md5", copy_all=False
+    iracing_folder, src_name, dest_name, algorithm="md5", copy_all=False, scramble=False
 ):
     """For grouped cars (like NASCAR), copy from whichever car has the source
     folder to all cars in the same group."""
@@ -412,10 +446,10 @@ def sync_group_folders(
             continue
         for car in cars:
             dest = os.path.join(iracing_folder, car, dest_name)
-            sync_folders(source_path, dest, algorithm, copy_all=copy_all)
+            sync_folders(source_path, dest, algorithm, copy_all=copy_all, scramble=scramble)
 
 
-def sync_nascar_source_folders(iracing_folder, src_name, algorithm="md5"):
+def sync_nascar_source_folders(iracing_folder, src_name, algorithm="md5", scramble=False):
     """Synchronise the source folder across all cars in each NASCAR group."""
     for group in ["nascar nextgen", "nascar xfinity", "nascar trucks"]:
         cars = CAR_GROUPS.get(group, [])
@@ -426,10 +460,10 @@ def sync_nascar_source_folders(iracing_folder, src_name, algorithm="md5"):
                 paths.append(p)
         for i in range(len(paths)):
             for j in range(i + 1, len(paths)):
-                sync_bidirectional(paths[i], paths[j], algorithm)
+                sync_bidirectional(paths[i], paths[j], algorithm, scramble)
 
 
-def sync_nascar_data_packs(iracing_folder, dest_name, algorithm="md5"):
+def sync_nascar_data_packs(iracing_folder, dest_name, algorithm="md5", scramble=False):
     """Keep NASCAR Data packs synced across all cars and team folders."""
     groups = [
         CAR_GROUPS.get("nascar nextgen", []),
@@ -449,7 +483,7 @@ def sync_nascar_data_packs(iracing_folder, dest_name, algorithm="md5"):
 
         for i in range(len(paths)):
             for j in range(i + 1, len(paths)):
-                sync_bidirectional(paths[i], paths[j], algorithm)
+                sync_bidirectional(paths[i], paths[j], algorithm, scramble)
 
 
 # ---------------------- Setup Processing ----------------------
@@ -601,30 +635,44 @@ def copy_from_source(source, iracing_folder, cfg, ask=False):
             if os.path.isdir(s):
                 if not os.path.exists(dp):
                     shutil.copytree(s, dp)
+                    if cfg.get("scramble_hash"):
+                        scramble_directory(dp)
+                        scramble_directory(s)
                 else:
                     sync_folders(
                         s,
                         dp,
                         cfg["hash_algorithm"],
                         copy_all=cfg.get("copy_all", False),
+                        scramble=cfg.get("scramble_hash", False),
                     )
             elif cfg.get("copy_all", False) or item.lower().endswith(".sto"):
                 shutil.copy2(s, dp)
+                if cfg.get("scramble_hash"):
+                    scramble_file(dp)
+                    scramble_file(s)
         for item in os.listdir(src_path):
             s = os.path.join(src_path, item)
             dp = os.path.join(team, item)
             if os.path.isdir(s):
                 if not os.path.exists(dp):
                     shutil.copytree(s, dp)
+                    if cfg.get("scramble_hash"):
+                        scramble_directory(dp)
+                        scramble_directory(s)
                 else:
                     sync_folders(
                         s,
                         dp,
                         cfg["hash_algorithm"],
                         copy_all=cfg.get("copy_all", False),
+                        scramble=cfg.get("scramble_hash", False),
                     )
             elif cfg.get("copy_all", False) or item.lower().endswith(".sto"):
                 shutil.copy2(s, dp)
+                if cfg.get("scramble_hash"):
+                    scramble_file(dp)
+                    scramble_file(s)
 
 
 def process_zip(zip_file, cfg, ask=False):
@@ -682,13 +730,16 @@ def run_silent(cfg, ask=False):
                 src_name,
                 cfg["hash_algorithm"],
                 cfg.get("copy_all", False),
+                cfg.get("scramble_hash", False),
             )
         drivers = (
             [clean_name(n) for n in cfg.get("drivers", [])]
             if cfg.get("use_driver_folders")
             else None
         )
-        sync_nascar_source_folders(ir_folder, src_name, cfg["hash_algorithm"])
+        sync_nascar_source_folders(
+            ir_folder, src_name, cfg["hash_algorithm"], cfg.get("scramble_hash", False)
+        )
         sync_team_folders(
             ir_folder,
             src_name,
@@ -696,6 +747,7 @@ def run_silent(cfg, ask=False):
             cfg["hash_algorithm"],
             cfg.get("copy_all", False),
             drivers,
+            cfg.get("scramble_hash", False),
         )
         sync_data_pack_folders(
             ir_folder,
@@ -704,8 +756,14 @@ def run_silent(cfg, ask=False):
             cfg["hash_algorithm"],
             cfg.get("copy_all", False),
             drivers,
+            cfg.get("scramble_hash", False),
         )
-    sync_nascar_data_packs(ir_folder, dst_name, cfg["hash_algorithm"])
+    sync_nascar_data_packs(
+        ir_folder,
+        dst_name,
+        cfg["hash_algorithm"],
+        cfg.get("scramble_hash", False),
+    )
 
     if cfg.get("backup_enabled") and cfg.get("backup_folder"):
         backup_iracing_folder(
@@ -881,6 +939,12 @@ def main():
             self.algo_combo.setCurrentText(self.cfg.get("hash_algorithm", "md5"))
             layout.addWidget(self.algo_combo)
 
+            self.scramble_check = QtWidgets.QCheckBox(
+                "Scramble files after copy (disable hash verification)"
+            )
+            self.scramble_check.setChecked(self.cfg.get("scramble_hash", False))
+            layout.addWidget(self.scramble_check)
+
             self.copy_all_check = QtWidgets.QCheckBox("Copy everything (not just .sto)")
             self.copy_all_check.setChecked(self.cfg.get("copy_all", False))
             self.copy_all_check.clicked.connect(self.on_copy_toggle)
@@ -1042,6 +1106,7 @@ def main():
                 "enable_logging": self.log_check.isChecked(),
                 "log_file": self.log_entry.text().strip(),
                 "hash_algorithm": self.algo_combo.currentText(),
+                "scramble_hash": self.scramble_check.isChecked(),
                 "run_on_startup": self.startup_check.isChecked(),
                 "use_external": self.external_check.isChecked(),
                 "extra_folders": [clean_name(e.text()) for _, e in self.extra_entries if e.text().strip()],
