@@ -38,9 +38,7 @@ CONFIG_FILE = os.path.join(_BASE_DIR, "user_config.json")
 MAP_FILE = os.path.join(_BASE_DIR, "custom_car_mapping.json")
 VERSION = "1.0.0"
 # Location of the latest script version for the self-update feature
-UPDATE_URL = (
-    "https://raw.githubusercontent.com/nishizumi-maho/nishizumi-setups-sync/main/nishizumi_setups_sync.py"
-)
+UPDATE_URL = "https://raw.githubusercontent.com/nishizumi-maho/nishizumi-setups-sync/main/nishizumi_setups_sync.py"
 
 # ---------------------- Config Handling ----------------------
 DEFAULT_CONFIG = {
@@ -161,9 +159,7 @@ def fetch_garage61_drivers(team_id, api_key=None):
         r.raise_for_status()
         data = r.json()
         names = [
-            clean_name(d.get("name"))
-            for d in data.get("drivers", [])
-            if d.get("name")
+            clean_name(d.get("name")) for d in data.get("drivers", []) if d.get("name")
         ]
         return [n for n in names if n]
     except Exception as e:
@@ -239,13 +235,16 @@ def sync_folders(
     algorithm="md5",
     delete_extras=True,
     copy_all=False,
+    ignore_dirs=None,
 ):
     """Synchronise ``src`` and ``dst``.
 
     By default only ``.sto`` files are copied. If ``copy_all`` is ``True`` all
     files are processed. When ``delete_extras`` is ``False`` any additional
-    files already in ``dst`` are preserved.
+    files already in ``dst`` are preserved. ``ignore_dirs`` can be a collection
+    of directory names to skip when copying and deleting.
     """
+    ignore_dirs = set(ignore_dirs or [])
     if not os.path.exists(dst):
         os.makedirs(dst)
 
@@ -253,8 +252,17 @@ def sync_folders(
         s = os.path.join(src, item)
         d = os.path.join(dst, item)
 
+        if item in ignore_dirs and os.path.isdir(s):
+            continue
         if os.path.isdir(s):
-            sync_folders(s, d, algorithm, delete_extras, copy_all)
+            sync_folders(
+                s,
+                d,
+                algorithm,
+                delete_extras,
+                copy_all,
+                ignore_dirs,
+            )
             continue
 
         if not copy_all and not item.lower().endswith(".sto"):
@@ -273,6 +281,8 @@ def sync_folders(
     if delete_extras:
         # Remove files in destination that are not wanted or no longer present
         for item in os.listdir(dst):
+            if item in ignore_dirs:
+                continue
             d = os.path.join(dst, item)
             s = os.path.join(src, item)
             if os.path.isdir(d):
@@ -340,6 +350,7 @@ def sync_team_folders(
 
         if drivers and driver_style:
             src_common = os.path.join(src, COMMON_FOLDER)
+            src_dp = os.path.join(src, "Data packs")
             if os.path.exists(src_common):
                 common = os.path.join(dest_root, COMMON_FOLDER)
                 sync_folders(src_common, common, algorithm, copy_all=copy_all)
@@ -350,6 +361,36 @@ def sync_team_folders(
                     copy_missing_files(sdriver, target, copy_all)
                 elif os.path.exists(src_common):
                     copy_missing_files(src_common, target, copy_all)
+            if os.path.isdir(src_dp):
+                common_dp = os.path.join(dest_root, COMMON_FOLDER, "Data packs")
+                sync_folders(
+                    src_dp,
+                    common_dp,
+                    algorithm,
+                    delete_extras=False,
+                    copy_all=copy_all,
+                )
+                for name in drivers:
+                    dp_dst = os.path.join(
+                        dest_root,
+                        DRIVERS_ROOT,
+                        name,
+                        "Data packs",
+                    )
+                    sync_folders(
+                        src_dp,
+                        dp_dst,
+                        algorithm,
+                        delete_extras=False,
+                        copy_all=copy_all,
+                    )
+            sync_folders(
+                src,
+                dest_root,
+                algorithm,
+                copy_all=copy_all,
+                ignore_dirs={"Data packs", COMMON_FOLDER, DRIVERS_ROOT},
+            )
         elif drivers:
             common = os.path.join(dest_root, COMMON_FOLDER)
             sync_folders(src, common, algorithm, copy_all=copy_all)
@@ -404,9 +445,7 @@ def merge_external_into_source(
             if not os.path.exists(ext):
                 continue
             if driver_style and drivers is not None:
-                common_dst = os.path.join(
-                    car_dir, src_name, COMMON_FOLDER, ext_name
-                )
+                common_dst = os.path.join(car_dir, src_name, COMMON_FOLDER, ext_name)
                 sync_folders(
                     ext,
                     common_dst,
@@ -814,14 +853,15 @@ def perform_sync(ir_folder, cfg):
         drivers,
         driver_style=cfg.get("use_driver_folders", False),
     )
-    sync_data_pack_folders(
-        ir_folder,
-        src_name,
-        dst_name,
-        cfg["hash_algorithm"],
-        cfg.get("copy_all", False),
-    )
-    sync_nascar_data_packs(ir_folder, dst_name, cfg["hash_algorithm"])
+    if not cfg.get("use_driver_folders"):
+        sync_data_pack_folders(
+            ir_folder,
+            src_name,
+            dst_name,
+            cfg["hash_algorithm"],
+            cfg.get("copy_all", False),
+        )
+        sync_nascar_data_packs(ir_folder, dst_name, cfg["hash_algorithm"])
 
 
 # ---------------------- Silent Entry ----------------------
@@ -992,14 +1032,20 @@ def main():
                 self.cfg.get("backup_folder", ""),
             )
             self.backup_entry.parent().setVisible(self.backup_check.isChecked())
-            self.backup_check.toggled.connect(lambda v: self.backup_entry.parent().setVisible(v))
+            self.backup_check.toggled.connect(
+                lambda v: self.backup_entry.parent().setVisible(v)
+            )
 
             self.log_check = QtWidgets.QCheckBox("Enable logging")
             self.log_check.setChecked(self.cfg.get("enable_logging", False))
             layout.addWidget(self.log_check)
-            self.log_entry = self._add_entry(layout, "Log File", self.cfg.get("log_file"))
+            self.log_entry = self._add_entry(
+                layout, "Log File", self.cfg.get("log_file")
+            )
             self.log_entry.parent().setVisible(self.log_check.isChecked())
-            self.log_check.toggled.connect(lambda v: self.log_entry.parent().setVisible(v))
+            self.log_check.toggled.connect(
+                lambda v: self.log_entry.parent().setVisible(v)
+            )
 
             self.sync_source_entry = self._add_entry(
                 layout,
@@ -1019,17 +1065,13 @@ def main():
             layout.addWidget(self.extra_count_label)
             self.extra_count_spin = QtWidgets.QSpinBox()
             self.extra_count_spin.setRange(0, 10)
-            self.extra_count_spin.setValue(
-                len(self.cfg.get("extra_folders", []))
-            )
+            self.extra_count_spin.setValue(len(self.cfg.get("extra_folders", [])))
             layout.addWidget(self.extra_count_spin)
             self.extra_entries = []
             self.extra_layout = QtWidgets.QVBoxLayout()
             layout.addLayout(self.extra_layout)
             self.extra_count_spin.valueChanged.connect(self.update_extra_fields)
-            self.external_check.toggled.connect(
-                self.update_extra_option_visibility
-            )
+            self.external_check.toggled.connect(self.update_extra_option_visibility)
             self.update_extra_option_visibility()
             self.update_extra_fields()
 
@@ -1050,12 +1092,23 @@ def main():
 
             drivers_group = QtWidgets.QGroupBox("Driver Folders")
             d_layout = QtWidgets.QVBoxLayout(drivers_group)
-            d_layout.addWidget(QtWidgets.QLabel("Sync setups to a common folder and each driver folder."))
+            d_layout.addWidget(
+                QtWidgets.QLabel(
+                    "Sync setups to a common folder and each driver folder."
+                )
+            )
             self.garage_check = QtWidgets.QCheckBox("Use Garage61 API for drivers")
             self.garage_check.setChecked(self.cfg.get("use_garage61", False))
             d_layout.addWidget(self.garage_check)
-            self.team_id_entry = self._add_entry(d_layout, "Garage61 Team ID", self.cfg.get("garage61_team_id"))
-            self.api_key_entry = self._add_entry(d_layout, "Garage61 API Key", self.cfg.get("garage61_api_key"), password=True)
+            self.team_id_entry = self._add_entry(
+                d_layout, "Garage61 Team ID", self.cfg.get("garage61_team_id")
+            )
+            self.api_key_entry = self._add_entry(
+                d_layout,
+                "Garage61 API Key",
+                self.cfg.get("garage61_api_key"),
+                password=True,
+            )
             self.driver_check = QtWidgets.QCheckBox("Manually write drivers names")
             self.driver_check.setChecked(self.cfg.get("use_driver_folders", False))
             d_layout.addWidget(self.driver_check)
@@ -1093,7 +1146,9 @@ def main():
             layout.addWidget(upd_btn)
 
         def browse_zip(self):
-            path, _ = QtWidgets.QFileDialog.getOpenFileName(self, "Select Zip", filter="Zip (*.zip)")
+            path, _ = QtWidgets.QFileDialog.getOpenFileName(
+                self, "Select Zip", filter="Zip (*.zip)"
+            )
             if path:
                 self.zip_entry.setText(path)
 
@@ -1103,12 +1158,16 @@ def main():
                 self.src_entry.setText(path)
 
         def browse_iracing(self):
-            path = QtWidgets.QFileDialog.getExistingDirectory(self, "Select iRacing Folder")
+            path = QtWidgets.QFileDialog.getExistingDirectory(
+                self, "Select iRacing Folder"
+            )
             if path:
                 self.iracing_entry.setText(path)
 
         def browse_backup(self):
-            path = QtWidgets.QFileDialog.getExistingDirectory(self, "Select Backup Folder")
+            path = QtWidgets.QFileDialog.getExistingDirectory(
+                self, "Select Backup Folder"
+            )
             if path:
                 self.backup_entry.setText(path)
 
@@ -1140,8 +1199,7 @@ def main():
         def update_driver_fields(self):
             count = (
                 self.driver_count_spin.value()
-                if self.driver_check.isChecked()
-                and not self.garage_check.isChecked()
+                if self.driver_check.isChecked() and not self.garage_check.isChecked()
                 else 0
             )
             while len(self.driver_entries) < count:
@@ -1163,7 +1221,9 @@ def main():
             self.team_id_entry.parent().setVisible(use_api)
             self.api_key_entry.parent().setVisible(use_api)
             self.driver_check.setVisible(not use_api)
-            self.driver_count_spin.setEnabled(self.driver_check.isChecked() and not use_api)
+            self.driver_count_spin.setEnabled(
+                self.driver_check.isChecked() and not use_api
+            )
             self.update_driver_fields()
 
         def update_mode_fields(self):
@@ -1207,10 +1267,18 @@ def main():
                 "hash_algorithm": self.algo_combo.currentText(),
                 "run_on_startup": self.startup_check.isChecked(),
                 "use_external": self.external_check.isChecked(),
-                "extra_folders": [clean_name(e.text()) for _, e in self.extra_entries if e.text().strip()],
+                "extra_folders": [
+                    clean_name(e.text())
+                    for _, e in self.extra_entries
+                    if e.text().strip()
+                ],
                 "copy_all": self.copy_all_check.isChecked(),
                 "use_driver_folders": self.driver_check.isChecked(),
-                "drivers": [clean_name(e.text()) for _, e in self.driver_entries if e.text().strip()],
+                "drivers": [
+                    clean_name(e.text())
+                    for _, e in self.driver_entries
+                    if e.text().strip()
+                ],
                 "use_garage61": self.garage_check.isChecked(),
                 "garage61_team_id": self.team_id_entry.text().strip(),
                 "garage61_api_key": self.api_key_entry.text().strip(),
