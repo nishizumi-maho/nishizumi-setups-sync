@@ -96,7 +96,9 @@ Season Folder:        2025S1
 
 When running without `--silent`, the script shows a window where you can
 configure how setups are imported. The window resizes automatically to fit all
-options. Each setting is saved in `user_config.json` for the next run.
+options. Each setting is saved in `user_config.json` for the next run. When
+packaged as an executable, this file sits alongside the `.exe` so your
+preferences persist between launches.
 
 Only the **iRacing Setups Folder** and **Backup Folder** fields expect full
 paths. Every other folder input should contain just a folder name that will be
@@ -179,7 +181,9 @@ performed on a Windows machine:
    ```
 
 The resulting `nishizumi_setups_sync.exe` will appear in the `dist` folder. You can
-share or run this file directly without needing Python.
+share or run this file directly without needing Python. The program stores its
+configuration in `user_config.json` next to the executable, so ensure the folder
+containing the `.exe` allows write access.
 
 ## Future Ideas
 
