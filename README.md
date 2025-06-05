@@ -171,6 +171,28 @@ not exist.
  * **Check for Updates** – downloads the latest version of the script when
    available.
 
+   ## Running Silently on Windows Startup
+
+To run Nishizumi Setups Sync automatically and silently at system startup:
+
+1. Open the interface (`python nishizumi_setups_sync.py`), configure everything, and enable **Run silently on startup** in the settings.
+2. If you're using the Python script directly, create a shortcut pointing to:
+
+    ```
+    pythonw.exe path\to\nishizumi_setups_sync.py
+    ```
+
+3. If you're using the compiled EXE, create a shortcut pointing to:
+
+    ```
+    path\to\nishizumi_setups_sync.exe
+    ```
+
+4. Place this shortcut into your Windows **Startup** folder.
+
+The tool will automatically run silently on boot. If any folders are missing, it will skip copying and exit cleanly.
+
+
 ## Building a Windows EXE
 
 To run the tool without requiring Python installed, you can create a standalone
