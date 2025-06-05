@@ -47,6 +47,8 @@ This repository provides Python script `nishizumi_setups_sync.py` to copy iRacin
   Garage61 API so driver folders are created and removed automatically.
 - When an unknown car folder is detected while running the GUI,
   the script asks which iRacing folder to use and remembers the choice.
+- The "Edit Car Mapping" window in the UI lets you review and change these
+  remembered folder names at any time.
 - Optional backup: the iRacing setups folder can be copied to a selected folder
   before syncing and again to another folder afterwards. If the same locations
   are reused on later runs the previous contents are overwritten.
@@ -112,7 +114,9 @@ in the console instead of a popup dialog.
 6. Click **Save Config** to store your settings without running.
 7. Press **Run** to perform the import and sync. The settings are saved for the
    next time you open the tool.
-8. Click **Check for Updates** to fetch the latest version when needed.
+8. Use **Edit Car Mapping** if you need to manually adjust how folder names map
+   to iRacing car directories.
+9. Click **Check for Updates** to fetch the latest version when needed.
 
 ### Example Configuration
 
