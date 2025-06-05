@@ -59,6 +59,8 @@ DEFAULT_CONFIG = {
     "copy_all": False,
     "use_driver_folders": False,
     "drivers": [],
+    "ask_drivers_per_car": False,
+    "driver_folders_by_car": {},
     "use_garage61": False,
     "garage61_team_id": "",
     "garage61_api_key": "",
@@ -142,6 +144,42 @@ def copy_entry(src, dst):
         log(f"[COPIED] '{src}' -> '{dst}'")
     except Exception as e:
         log(f"[ERROR] Failed to copy '{src}' -> '{dst}': {e}")
+
+
+def _prompt_yes_no(question):
+    """Return ``True`` if the user answers yes to ``question``."""
+    try:
+        from PySide6 import QtWidgets
+
+        app = QtWidgets.QApplication.instance()
+        parent = app.activeWindow() if app else None
+        reply = QtWidgets.QMessageBox.question(
+            parent,
+            "Confirm",
+            question,
+            QtWidgets.QMessageBox.Yes | QtWidgets.QMessageBox.No,
+        )
+        return reply == QtWidgets.QMessageBox.Yes
+    except Exception:
+        ans = input(f"{question} [y/N]: ")
+        return ans.strip().lower() in ("y", "yes")
+
+
+def use_drivers_for_car(car, cfg, ask=False):
+    """Return ``True`` if driver folders should be created for ``car``."""
+    if not cfg.get("use_driver_folders"):
+        return False
+    if not cfg.get("ask_drivers_per_car"):
+        return True
+    mapping = cfg.setdefault("driver_folders_by_car", {})
+    if car in mapping:
+        return mapping[car]
+    if ask:
+        create = _prompt_yes_no(f"Create driver folders for '{car}'?")
+        mapping[car] = bool(create)
+        save_config(cfg)
+        return create
+    return True
 
 
 def fetch_garage61_drivers(team_id, api_key=None):
@@ -315,6 +353,8 @@ def sync_team_folders(
     algorithm="md5",
     copy_all=False,
     drivers=None,
+    cfg=None,
+    ask=False,
 ):
     """Copy source subfolder ``src_name`` to ``dest_name`` for each car.
 
@@ -332,16 +372,20 @@ def sync_team_folders(
             continue
 
         if drivers:
-            common = os.path.join(dest_root, COMMON_FOLDER)
-            sync_folders(src, common, algorithm, copy_all=copy_all)
-            for name in drivers:
-                dpath = os.path.join(dest_root, DRIVERS_ROOT, name)
-                copy_missing_files(src, dpath, copy_all)
+            if use_drivers_for_car(car, cfg or {}, ask):
+                common = os.path.join(dest_root, COMMON_FOLDER)
+                sync_folders(src, common, algorithm, copy_all=copy_all)
+                for name in drivers:
+                    dpath = os.path.join(dest_root, DRIVERS_ROOT, name)
+                    copy_missing_files(src, dpath, copy_all)
+            else:
+                common = os.path.join(dest_root, COMMON_FOLDER)
+                sync_folders(src, common, algorithm, copy_all=copy_all)
         else:
             sync_folders(src, dest_root, algorithm, copy_all=copy_all)
 
 
-def remove_unknown_driver_folders(iracing_folder, dest_name, drivers):
+def remove_unknown_driver_folders(iracing_folder, dest_name, drivers, cfg=None):
     """Delete driver folders not present in ``drivers``."""
     if drivers is None:
         return
@@ -351,6 +395,9 @@ def remove_unknown_driver_folders(iracing_folder, dest_name, drivers):
             continue
         root = os.path.join(car_dir, dest_name, DRIVERS_ROOT)
         if not os.path.isdir(root):
+            continue
+        if cfg and cfg.get("ask_drivers_per_car") and not use_drivers_for_car(car, cfg):
+            shutil.rmtree(root, ignore_errors=True)
             continue
         for folder in os.listdir(root):
             if folder not in drivers:
@@ -712,7 +759,7 @@ def run_silent(cfg, ask=False):
             else None
         )
         if drivers is not None:
-            remove_unknown_driver_folders(ir_folder, dst_name, drivers)
+            remove_unknown_driver_folders(ir_folder, dst_name, drivers, cfg)
         sync_nascar_source_folders(ir_folder, src_name, cfg["hash_algorithm"])
         sync_team_folders(
             ir_folder,
@@ -721,6 +768,8 @@ def run_silent(cfg, ask=False):
             cfg["hash_algorithm"],
             cfg.get("copy_all", False),
             drivers,
+            cfg,
+            ask,
         )
         sync_data_pack_folders(
             ir_folder,
@@ -919,6 +968,9 @@ def main():
             self.driver_check.setChecked(self.cfg.get("use_driver_folders", False))
             d_layout.addWidget(self.driver_check)
             self.driver_check.toggled.connect(self.update_garage_fields)
+            self.per_car_check = QtWidgets.QCheckBox("Ask per car")
+            self.per_car_check.setChecked(self.cfg.get("ask_drivers_per_car", False))
+            d_layout.addWidget(self.per_car_check)
             d_layout.addWidget(QtWidgets.QLabel("Number of drivers"))
             self.driver_count_spin = QtWidgets.QSpinBox()
             # Allow a very large number of drivers to be configured
@@ -1017,6 +1069,7 @@ def main():
             self.team_id_entry.parent().setVisible(use_api)
             self.api_key_entry.parent().setVisible(use_api)
             self.driver_check.setVisible(not use_api)
+            self.per_car_check.setVisible(self.driver_check.isChecked() and not use_api)
             self.driver_count_spin.setEnabled(self.driver_check.isChecked() and not use_api)
             self.update_driver_fields()
 
@@ -1064,6 +1117,7 @@ def main():
                 "extra_folders": [clean_name(e.text()) for _, e in self.extra_entries if e.text().strip()],
                 "copy_all": self.copy_all_check.isChecked(),
                 "use_driver_folders": self.driver_check.isChecked(),
+                "ask_drivers_per_car": self.per_car_check.isChecked(),
                 "drivers": [clean_name(e.text()) for _, e in self.driver_entries if e.text().strip()],
                 "use_garage61": self.garage_check.isChecked(),
                 "garage61_team_id": self.team_id_entry.text().strip(),
