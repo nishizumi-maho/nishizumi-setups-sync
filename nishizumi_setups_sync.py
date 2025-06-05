@@ -1,13 +1,18 @@
 """iRacing setup management script.
 
-This script imports setup files from a ZIP archive or another folder and
-synchronises them between personal and team directories. It can run silently
-on startup and supports optional Garage61 integration and backup features.
+This script imports setup files from a ZIP or RAR archive or another folder and
+synchronises them between personal and team directories. It can run silently on
+startup and supports optional Garage61 integration and backup features.
 """
 
 import os
 import sys
 import zipfile
+
+try:
+    import rarfile  # pragma: no cover - optional RAR support
+except ModuleNotFoundError:  # pragma: no cover - handle missing dependency
+    rarfile = None
 import shutil
 import hashlib
 import json
@@ -43,7 +48,7 @@ UPDATE_URL = "https://raw.githubusercontent.com/nishizumi-maho/nishizumi-setups-
 # ---------------------- Config Handling ----------------------
 DEFAULT_CONFIG = {
     "iracing_folder": "",
-    "source_type": "zip",  # 'zip' or 'folder'
+    "source_type": "zip",  # 'zip' (zip or rar) or 'folder'
     "zip_file": "",
     "source_folder": "",
     "team_folder": "Example Team",
@@ -850,8 +855,18 @@ def process_zip(zip_file, cfg, ask=False):
         os.path.dirname(zip_file), os.path.splitext(os.path.basename(zip_file))[0]
     )
     try:
-        with zipfile.ZipFile(zip_file, "r") as z:
-            z.extractall(extract_path)
+        if zip_file.lower().endswith(".rar"):
+            if rarfile is None:
+                log(
+                    "RAR support requires the 'rarfile' package. Install it with 'pip install rarfile'.",
+                    cfg,
+                )
+                return
+            with rarfile.RarFile(zip_file) as z:
+                z.extractall(extract_path)
+        else:
+            with zipfile.ZipFile(zip_file, "r") as z:
+                z.extractall(extract_path)
     except Exception as e:
         log(f"Failed to extract {zip_file}: {e}", cfg)
         return
@@ -952,7 +967,7 @@ def run_silent(cfg, ask=False):
         if os.path.exists(cfg.get("zip_file", "")):
             process_zip(cfg["zip_file"], cfg, ask=ask)
         else:
-            log("Zip file not found, skipping import", cfg)
+            log("Archive file not found, skipping import", cfg)
     elif cfg["source_type"] == "folder":
         if os.path.exists(cfg.get("source_folder", "")):
             copy_from_source(cfg["source_folder"], ir_folder, cfg, ask=ask)
@@ -1060,7 +1075,7 @@ def main():
 
             self.zip_entry = self._add_browse(
                 layout,
-                "Zip File to Import",
+                "Archive File to Import",
                 True,
                 self.browse_zip,
                 self.cfg.get("zip_file", ""),
@@ -1228,7 +1243,9 @@ def main():
 
         def browse_zip(self):
             path, _ = QtWidgets.QFileDialog.getOpenFileName(
-                self, "Select Zip", filter="Zip (*.zip)"
+                self,
+                "Select Archive",
+                filter="Archive (*.zip *.rar)"
             )
             if path:
                 self.zip_entry.setText(path)
