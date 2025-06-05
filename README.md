@@ -80,6 +80,10 @@ To automate the process on start-up, enable `Run silently on startup`. Place a
 shortcut that launches the script without a console (for example using
 `pythonw` or passing `--silent`) in your operating system's start-up folder.
 
+**Be careful when checking the box to start on startup!**
+This will cause it to run only via console; you will need to set up the startup rule manually, as explained above.
+If you enable this option and later want to open the application's GUI again, either run it via terminal or change the option from true to false in config.json.
+
 ```bash
 python nishizumi_setups_sync.py     # open the graphical interface
 python nishizumi_setups_sync.py --silent  # run with saved options without showing UI
