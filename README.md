@@ -23,7 +23,9 @@ This repository provides Python script `nishizumi_setups_sync.py` to copy iRacin
   - Data packs across all NASCAR variants remain synchronised.
   - If enabled, one or more additional folders (e.g. from third-party sync
     tools) are copied as subfolders inside the source folder before the normal
-    synchronisation copies everything to the team folder.
+    synchronisation copies everything to the team folder. Each extra folder can
+    be taken either from the car directory or from inside the sync destination
+    folder.
 - By default only `.sto` files are copied; a checkbox allows copying every file
   type instead.
 - Optionally create driver-specific folders in the destination. When enabled,
@@ -176,7 +178,9 @@ not exist.
   usual sync copies the files to the team folder.
 * **Number of extra folders** – how many additional folder names to provide.
 * **Extra Folder N Name** – the name of each folder created by external sync
-  tools (for example `ExampleTool`). Name only.
+  tools (for example `ExampleTool`). Use just the folder name. For each entry
+  you can also choose whether the folder is located directly inside the car
+  directory or inside the sync destination folder.
 * **Hash Algorithm (file comparison)** – method used to detect changes.
 * **Copy everything (not just .sto)** – when enabled, the tool copies every
   file type instead of only `.sto` files.
