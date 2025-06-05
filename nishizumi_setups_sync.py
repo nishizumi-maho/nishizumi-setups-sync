@@ -652,6 +652,14 @@ def run_silent(cfg, ask=False):
         log("No valid iRacing folder configured. Nothing to do.", cfg)
         return
 
+    # Backup the entire iRacing folder before making any changes
+    if cfg.get("backup_enabled") and cfg.get("backup_folder"):
+        backup_iracing_folder(
+            ir_folder,
+            cfg["backup_folder"],
+            cfg.get("copy_all", False),
+        )
+
     if cfg["source_type"] == "zip":
         if os.path.exists(cfg.get("zip_file", "")):
             process_zip(cfg["zip_file"], cfg, ask=ask)
@@ -706,13 +714,6 @@ def run_silent(cfg, ask=False):
             drivers,
         )
     sync_nascar_data_packs(ir_folder, dst_name, cfg["hash_algorithm"])
-
-    if cfg.get("backup_enabled") and cfg.get("backup_folder"):
-        backup_iracing_folder(
-            ir_folder,
-            cfg["backup_folder"],
-            cfg.get("copy_all", False),
-        )
 
 
 def main():

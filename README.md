@@ -33,8 +33,9 @@ This repository provides Python script `nishizumi_setups_sync.py` to copy iRacin
   Garage61 API so driver folders are created and removed automatically.
 - When an unknown car folder is detected while running the GUI,
   the script asks which iRacing folder to use and remembers the choice.
-- Optional backup: copy new files from the iRacing setups folder to a chosen
-  backup folder on every run. Existing backups are preserved.
+- Optional backup: before any changes are made, new files are copied from the
+  iRacing setups folder to a chosen backup folder. Changes made during the run
+  are **not** copied back to the backup. Existing backups are preserved.
 - Optional logging: when enabled, actions are appended to a log file for later
   review.
 - Built-in update function to download the latest script version.
@@ -52,8 +53,9 @@ pip install -r requirements.txt
 Run the script and choose the iRacing setups folder. Depending on the selected
 import mode you may also pick a ZIP file or a source folder. Configure folder
 names as needed and press **Run**. The selected options are saved for next
-time. If backup is enabled, new files are copied to the backup folder on each
-execution.
+time. If backup is enabled, the iRacing folder is copied to the backup before
+any syncing occurs, so the backup never includes modifications from the
+current run.
 
 To automate the process on start-up, enable `Run silently on startup`. Place a
 shortcut that launches the script without a console (for example using
@@ -115,9 +117,10 @@ not exist.
 * **iRacing Setups Folder** – root folder that stores all car setup folders.
   Select the full path using the folder browser.
 * **Enable backup** – when checked, a copy of new files is stored in the
-  specified backup folder each time the program runs.
-* **Backup Folder** – directory where backups are placed when backup is enabled.
-  Provide the full path here.
+  specified backup folder before syncing begins. Files created or modified
+  during the run are not saved to the backup.
+* **Backup Folder** – directory where the pre-run backups are stored. Provide
+  the full path here.
 * **Enable logging** – write operations to a log file during execution.
 * **Log File** – path of the file used when logging is enabled.
 * **Import Mode** – choose **Zip Import** to unpack a ZIP file,
