@@ -122,6 +122,9 @@ Backup Folder (before):  D:\SetupsBackupBefore
 Backup Folder (after):   D:\SetupsBackupAfter
 Team Folder Name:        MyTeam
 Personal Folder Name:    DriverOne
+Setup Supplier Folder:   FastSetups
+Sync Source Folder:      Private
+Sync Destination Folder: Shared
 Season Folder Name:      2025S1
 ```
 
@@ -183,7 +186,7 @@ not exist.
 * **Manually write drivers names** – copy setups to a shared `Common Setups`
   folder and to each driver name without overwriting their custom versions.
 * **Number of drivers** – how many driver folders to create when manual entry is
-  enabled.
+  enabled (up to 1000).
 * **Driver N Name** – text fields for each driver folder name. Use names only.
 * **Use extra sync folders** – when enabled, the additional folders listed below
   are copied as subfolders inside the source folder for every car before the
