@@ -11,7 +11,11 @@ import zipfile
 import shutil
 import hashlib
 import json
-import requests
+try:
+    import requests
+except ModuleNotFoundError:  # pragma: no cover - handle missing dependency
+    print("The 'requests' package is required. Install it with 'pip install requests'.")
+    sys.exit(1)
 import re
 from datetime import datetime
 import tkinter as tk
@@ -23,8 +27,8 @@ MAP_FILE = "custom_car_mapping.json"
 VERSION = "1.0.0"
 # Location of the latest script version for the self-update feature
 UPDATE_URL = (
-    "https://raw.githubusercontent.com/yourusername/"
-    "iRacing-Setups-Sync/main/setup_manager.py"
+    "https://raw.githubusercontent.com/MahoNishizumi/"
+    "nishizumi-setups-sync/main/setup_manager.py"
 )
 
 # ---------------------- Config Handling ----------------------
@@ -35,7 +39,7 @@ DEFAULT_CONFIG = {
     "source_folder": "",
     "team_folder": "Example Team",
     "personal_folder": "My Personal Folder",
-    "driver_folder": "Example Driver",
+    "driver_folder": "Example Supplier",
     "season_folder": "Example Season",
     "sync_source": "Example Source",
     "sync_destination": "Example Destination",
@@ -111,6 +115,17 @@ def log(msg, cfg=None):
             pass
 
 
+INVALID_CHARS = '<>:"/\\|?*'
+
+
+def clean_name(name):
+    """Return ``name`` stripped of whitespace and invalid path characters."""
+    if not name:
+        return ""
+    name = name.strip()
+    return "".join(c for c in name if c not in INVALID_CHARS)
+
+
 def copy_entry(src, dst):
     """Copy a file or directory preserving metadata."""
     try:
@@ -134,8 +149,12 @@ def fetch_garage61_drivers(team_id, api_key=None):
         r = requests.get(url, headers=headers, timeout=10)
         r.raise_for_status()
         data = r.json()
-        names = [d.get("name") for d in data.get("drivers", []) if d.get("name")]
-        return names
+        names = [
+            clean_name(d.get("name"))
+            for d in data.get("drivers", [])
+            if d.get("name")
+        ]
+        return [n for n in names if n]
     except Exception as e:
         log(f"Failed to fetch drivers from Garage61: {e}")
         return None
@@ -649,7 +668,7 @@ def run_silent(cfg, ask=False):
                 cfg.get("garage61_team_id"), cfg.get("garage61_api_key")
             )
             if names is not None:
-                cfg["drivers"] = names
+                cfg["drivers"] = [clean_name(n) for n in names if n]
                 save_config(cfg)
         if cfg.get("use_external") and cfg.get("extra_folders"):
             merge_external_into_source(
@@ -659,7 +678,11 @@ def run_silent(cfg, ask=False):
                 cfg["hash_algorithm"],
                 cfg.get("copy_all", False),
             )
-        drivers = cfg.get("drivers") if cfg.get("use_driver_folders") else None
+        drivers = (
+            [clean_name(n) for n in cfg.get("drivers", [])]
+            if cfg.get("use_driver_folders")
+            else None
+        )
         sync_nascar_source_folders(ir_folder, src_name, cfg["hash_algorithm"])
         sync_team_folders(
             ir_folder,
@@ -720,30 +743,30 @@ def browse_backup():
 
 def save_and_run():
     cfg = {
-        "iracing_folder": iracing_entry.get(),
+        "iracing_folder": iracing_entry.get().strip(),
         "source_type": mode_var.get(),
-        "zip_file": zip_entry.get(),
-        "source_folder": src_entry.get(),
-        "team_folder": team_entry.get(),
-        "personal_folder": personal_entry.get(),
-        "driver_folder": driver_entry.get(),
-        "season_folder": season_entry.get(),
-        "sync_source": sync_source_entry.get(),
-        "sync_destination": sync_dest_entry.get(),
+        "zip_file": zip_entry.get().strip(),
+        "source_folder": src_entry.get().strip(),
+        "team_folder": clean_name(team_entry.get()),
+        "personal_folder": clean_name(personal_entry.get()),
+        "driver_folder": clean_name(driver_entry.get()),
+        "season_folder": clean_name(season_entry.get()),
+        "sync_source": clean_name(sync_source_entry.get()),
+        "sync_destination": clean_name(sync_dest_entry.get()),
         "backup_enabled": backup_var.get() == 1,
-        "backup_folder": backup_entry.get(),
+        "backup_folder": backup_entry.get().strip(),
         "enable_logging": log_var.get() == 1,
-        "log_file": log_entry.get(),
+        "log_file": log_entry.get().strip(),
         "hash_algorithm": algo_var.get(),
         "run_on_startup": startup_var.get() == 1,
         "use_external": external_var.get() == 1,
-        "extra_folders": [e.get() for _, e in external_entries if e.get()],
+        "extra_folders": [clean_name(e.get()) for _, e in external_entries if e.get().strip()],
         "copy_all": copy_all_var.get() == 1,
         "use_driver_folders": driver_var.get() == 1,
-        "drivers": [e.get() for _, e in driver_entries if e.get()],
+        "drivers": [clean_name(e.get()) for _, e in driver_entries if e.get().strip()],
         "use_garage61": garage_var.get() == 1,
-        "garage61_team_id": team_id_entry.get(),
-        "garage61_api_key": api_key_entry.get(),
+        "garage61_team_id": team_id_entry.get().strip(),
+        "garage61_api_key": api_key_entry.get().strip(),
     }
     save_config(cfg)
     run_silent(cfg, ask=True)
@@ -868,7 +891,7 @@ def main():
     driver_frame = ttk.Frame(scrollable)
     ttk.Label(
         driver_frame,
-        text="Driver Folder Name (inside team folder)",
+        text="Setup Supplier Name (inside team folder)",
     ).pack()
     driver_entry = ttk.Entry(driver_frame, width=40)
     driver_entry.insert(0, cfg.get("driver_folder", ""))
@@ -907,12 +930,13 @@ def main():
     ttk.Button(backup_frame, text="Browse", command=browse_backup).pack()
 
     log_var = tk.IntVar(value=1 if cfg.get("enable_logging", False) else 0)
-    ttk.Checkbutton(
+    log_var_chk = ttk.Checkbutton(
         scrollable,
         text="Enable logging",
         variable=log_var,
         command=lambda: toggle_log_fields(),
-    ).pack()
+    )
+    log_var_chk.pack()
 
     log_frame = ttk.Frame(scrollable)
     ttk.Label(log_frame, text="Log File").pack()
@@ -1089,13 +1113,13 @@ def main():
 
     def toggle_backup_fields():
         if backup_var.get():
-            backup_frame.pack()
+            backup_frame.pack(after=backup_var_chk)
         else:
             backup_frame.pack_forget()
 
     def toggle_log_fields():
         if log_var.get():
-            log_frame.pack()
+            log_frame.pack(after=log_var_chk)
         else:
             log_frame.pack_forget()
 
