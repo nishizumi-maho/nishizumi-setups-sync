@@ -62,6 +62,7 @@ DEFAULT_CONFIG = {
     "use_garage61": False,
     "garage61_team_id": "",
     "garage61_api_key": "",
+    "collect_folder": "",
 }
 
 
@@ -382,6 +383,30 @@ def merge_external_into_source(
                 continue
             dst = os.path.join(car_dir, src_name, ext_name)
             sync_folders(ext, dst, algorithm, delete_extras=False, copy_all=copy_all)
+
+
+def collect_folder_from_destination(
+    iracing_folder,
+    src_name,
+    dest_name,
+    folder_name,
+    algorithm="md5",
+    copy_all=False,
+):
+    """Move ``folder_name`` from destination back into the source folder."""
+    if not folder_name:
+        return
+    for car in os.listdir(iracing_folder):
+        car_dir = os.path.join(iracing_folder, car)
+        if not os.path.isdir(car_dir):
+            continue
+        dest_folder = os.path.join(car_dir, dest_name, folder_name)
+        if not os.path.isdir(dest_folder):
+            continue
+        src = os.path.join(car_dir, src_name)
+        sync_folders(dest_folder, src, algorithm, delete_extras=False, copy_all=copy_all)
+        shutil.rmtree(dest_folder, ignore_errors=True)
+        log(f"Collected '{folder_name}' from {car} into source and removed it", None)
 
 
 def sync_data_pack_folders(
@@ -706,6 +731,15 @@ def run_silent(cfg, ask=False):
                 cfg["hash_algorithm"],
                 cfg.get("copy_all", False),
             )
+        if cfg.get("collect_folder"):
+            collect_folder_from_destination(
+                ir_folder,
+                src_name,
+                dst_name,
+                cfg["collect_folder"],
+                cfg["hash_algorithm"],
+                cfg.get("copy_all", False),
+            )
         drivers = (
             [clean_name(n) for n in cfg.get("drivers", [])]
             if cfg.get("use_driver_folders")
@@ -870,6 +904,11 @@ def main():
 
             self.sync_source_entry = self._add_entry(layout, "Sync Source Folder (copy from)", self.cfg.get("sync_source"))
             self.sync_dest_entry = self._add_entry(layout, "Sync Destination Folder (copy to)", self.cfg.get("sync_destination"))
+            self.collect_entry = self._add_entry(
+                layout,
+                "Collect Folder Name from Destination",
+                self.cfg.get("collect_folder", ""),
+            )
 
             self.external_check = QtWidgets.QCheckBox("Use extra sync folders")
             self.external_check.setChecked(self.cfg.get("use_external", False))
@@ -1054,6 +1093,7 @@ def main():
                 "season_folder": clean_name(self.season_entry.text()),
                 "sync_source": clean_name(self.sync_source_entry.text()),
                 "sync_destination": clean_name(self.sync_dest_entry.text()),
+                "collect_folder": clean_name(self.collect_entry.text()),
                 "backup_enabled": self.backup_check.isChecked(),
                 "backup_folder": self.backup_entry.text().strip(),
                 "enable_logging": self.log_check.isChecked(),
