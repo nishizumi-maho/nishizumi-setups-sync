@@ -1,1 +1,5 @@
 __pycache__/
+
+# Local configuration files
+user_config.json
+custom_car_mapping.json
