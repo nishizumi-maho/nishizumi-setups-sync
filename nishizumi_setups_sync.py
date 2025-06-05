@@ -493,8 +493,10 @@ def merge_external_into_source(
             loc = ext_def.get("location", "car")
             if loc == "dest":
                 ext = os.path.join(car_dir, dest_name, folder_name)
+                remove_after = True
             else:
                 ext = os.path.join(car_dir, folder_name)
+                remove_after = False
             if not os.path.exists(ext):
                 continue
             if driver_style and drivers is not None:
@@ -530,6 +532,8 @@ def merge_external_into_source(
                     delete_extras=False,
                     copy_all=copy_all,
                 )
+            if remove_after:
+                shutil.rmtree(ext, ignore_errors=True)
 
 
 def sync_data_pack_folders(
