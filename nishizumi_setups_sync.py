@@ -1091,7 +1091,10 @@ def main():
     if "--silent" in sys.argv or (
         cfg.get("run_on_startup", False)
         and "--gui" not in sys.argv
-        and not sys.stdin.isatty()
+        and (
+            not hasattr(sys.stdin, "isatty")
+            or not sys.stdin.isatty()
+        )
     ):
         run_silent(cfg, ask=False)
         return
@@ -1691,7 +1694,10 @@ def main():
     if "--silent" in sys.argv or (
         cfg.get("run_on_startup", False)
         and "--gui" not in sys.argv
-        and not sys.stdin.isatty()
+        and (
+            not hasattr(sys.stdin, "isatty")
+            or not sys.stdin.isatty()
+        )
     ):
         run_silent(cfg, ask=False)
         return
