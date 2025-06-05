@@ -19,8 +19,17 @@ except ModuleNotFoundError:  # pragma: no cover - handle missing dependency
 import re
 from datetime import datetime
 
-CONFIG_FILE = "user_config.json"
-MAP_FILE = "custom_car_mapping.json"
+# Store configuration files next to the script or executable. When bundled
+# with PyInstaller using ``--onefile`` the temporary extraction directory would
+# be removed on exit, so we resolve paths relative to the running file instead
+# of the current working directory.
+if getattr(sys, "frozen", False):
+    _BASE_DIR = os.path.dirname(sys.executable)
+else:
+    _BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
+CONFIG_FILE = os.path.join(_BASE_DIR, "user_config.json")
+MAP_FILE = os.path.join(_BASE_DIR, "custom_car_mapping.json")
 VERSION = "1.0.0"
 # Location of the latest script version for the self-update feature
 UPDATE_URL = (
