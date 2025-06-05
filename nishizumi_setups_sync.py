@@ -374,7 +374,6 @@ def sync_data_pack_folders(
     dest_team,
     algorithm="md5",
     copy_all=False,
-    drivers=None,
 ):
     """Synchronise the ``Data packs`` subfolder across all cars."""
     src_dp = os.path.join(src_team, "Data packs")
@@ -392,7 +391,7 @@ def sync_data_pack_folders(
         dest_dp,
         algorithm,
         copy_all,
-        drivers,
+        drivers=None,
     )
 
 
@@ -711,7 +710,6 @@ def run_silent(cfg, ask=False):
             dst_name,
             cfg["hash_algorithm"],
             cfg.get("copy_all", False),
-            drivers,
         )
     sync_nascar_data_packs(ir_folder, dst_name, cfg["hash_algorithm"])
 
