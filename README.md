@@ -26,6 +26,9 @@ This repository provides Python script `nishizumi_setups_sync.py` to copy iRacin
     synchronisation copies everything to the team folder.
 - By default only `.sto` files are copied; a checkbox allows copying every file
   type instead.
+- Scramble mode can modify files with random bytes after copying so that their
+  hashes differ from the source. The script scrambles both the destination and
+  original files, effectively disabling hash-based comparison.
 - Optionally create driver-specific folders in the destination. When enabled,
   setups are synced to a `Common Setups` folder and to each named driver folder
   without overwriting the drivers' custom versions.
@@ -161,6 +164,9 @@ not exist.
 * **Extra Folder N Name** – the name of each folder created by external sync
   tools (for example `ExampleTool`). Name only.
 * **Hash Algorithm (file comparison)** – method used to detect changes.
+* **Scramble files after copy** – when enabled, both the copied file and the
+  original are modified with random bytes so their hashes no longer match.
+  Hash verification is therefore disabled.
 * **Copy everything (not just .sto)** – when enabled, the tool copies every
   file type instead of only `.sto` files.
  * **Run silently on startup** – if enabled, the script runs silently when
