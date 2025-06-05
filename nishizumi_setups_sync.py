@@ -1103,6 +1103,63 @@ def main():
         run_silent(cfg, ask=False)
         return
 
+    class MappingDialog(QtWidgets.QDialog):
+        """Dialog window for editing custom car mappings."""
+
+        def __init__(self, mapping, parent=None):
+            super().__init__(parent)
+            self.setWindowTitle("Edit Car Mapping")
+            self.resize(400, 300)
+            self.table = QtWidgets.QTableWidget(0, 2, self)
+            self.table.setHorizontalHeaderLabels(["Folder", "Car"])
+            self.table.horizontalHeader().setStretchLastSection(True)
+            self.table.verticalHeader().setVisible(False)
+            for folder, car in mapping.items():
+                self._add_row(folder, car)
+
+            add_btn = QtWidgets.QPushButton("Add")
+            remove_btn = QtWidgets.QPushButton("Remove Selected")
+            save_btn = QtWidgets.QPushButton("Save")
+            cancel_btn = QtWidgets.QPushButton("Cancel")
+
+            add_btn.clicked.connect(lambda: self._add_row("", ""))
+            remove_btn.clicked.connect(self._remove_rows)
+            save_btn.clicked.connect(self.accept)
+            cancel_btn.clicked.connect(self.reject)
+
+            btns = QtWidgets.QHBoxLayout()
+            btns.addWidget(add_btn)
+            btns.addWidget(remove_btn)
+            btns.addStretch()
+            btns.addWidget(save_btn)
+            btns.addWidget(cancel_btn)
+
+            layout = QtWidgets.QVBoxLayout(self)
+            layout.addWidget(self.table)
+            layout.addLayout(btns)
+
+        def _add_row(self, folder, car):
+            row = self.table.rowCount()
+            self.table.insertRow(row)
+            self.table.setItem(row, 0, QtWidgets.QTableWidgetItem(folder))
+            self.table.setItem(row, 1, QtWidgets.QTableWidgetItem(car))
+
+        def _remove_rows(self):
+            rows = sorted({i.row() for i in self.table.selectedIndexes()}, reverse=True)
+            for r in rows:
+                self.table.removeRow(r)
+
+        def mapping(self):
+            result = {}
+            for row in range(self.table.rowCount()):
+                f_item = self.table.item(row, 0)
+                c_item = self.table.item(row, 1)
+                folder = f_item.text().strip().lower() if f_item else ""
+                car = c_item.text().strip() if c_item else ""
+                if folder and car:
+                    result[folder] = car
+            return result
+
     class MainWindow(QtWidgets.QWidget):
         """PySide6 interface for configuring and running the tool."""
 
@@ -1370,6 +1427,10 @@ def main():
             run_btn.clicked.connect(self.save_and_run)
             layout.addWidget(run_btn)
 
+            map_btn = QtWidgets.QPushButton("Edit Car Mapping")
+            map_btn.clicked.connect(self.edit_mapping)
+            layout.addWidget(map_btn)
+
             upd_btn = QtWidgets.QPushButton("Check for Updates")
             upd_btn.clicked.connect(update_script)
             layout.addWidget(upd_btn)
@@ -1607,6 +1668,12 @@ def main():
             cfg = self.collect_config()
             save_config(cfg)
             QtWidgets.QMessageBox.information(self, "Saved", "Configuration saved")
+
+        def edit_mapping(self):
+            current = load_custom_mapping()
+            dlg = MappingDialog(current, self)
+            if dlg.exec() == QtWidgets.QDialog.Accepted:
+                save_custom_mapping(dlg.mapping())
 
     app = QtWidgets.QApplication(sys.argv)
 
