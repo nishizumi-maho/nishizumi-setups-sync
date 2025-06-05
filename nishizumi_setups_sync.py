@@ -11,6 +11,12 @@ import zipfile
 import shutil
 import hashlib
 import json
+
+try:
+    from tkinter import Tk, simpledialog  # pragma: no cover - optional GUI
+except Exception:  # pragma: no cover - tkinter may be missing
+    Tk = None
+    simpledialog = None
 try:
     import requests
 except ModuleNotFoundError:  # pragma: no cover - handle missing dependency
@@ -589,18 +595,44 @@ def copy_from_source(source, iracing_folder, cfg, ask=False):
     for folder in subfolders:
         setup_name = identify_setup(folder, custom_map)
         if not setup_name and ask:
-            setup_name = simpledialog.askstring(
-                "Map Car Folder",
-                f"Folder '{folder}' not recognised.\n"
-                "Enter the name of the target folder in iRacing setups:",
-            )
-            if setup_name:
-                custom_map[folder.lower()] = setup_name.strip()
+            user_input = None
+            if simpledialog and Tk:
+                try:
+                    root = Tk()
+                    root.withdraw()
+                    user_input = simpledialog.askstring(
+                        "Map Car Folder",
+                        (
+                            f"Folder '{folder}' not recognised.\n"
+                            "Enter the name of the target folder in iRacing setups:"
+                        ),
+                    )
+                    root.destroy()
+                except Exception:
+                    user_input = None
+            if user_input is None:
+                try:
+                    user_input = input(
+                        (
+                            f"Folder '{folder}' not recognised.\n"
+                            "Enter the name of the target folder in iRacing setups: "
+                        )
+                    )
+                except Exception:
+                    user_input = None
+            if user_input:
+                setup_name = user_input.strip()
+                custom_map[folder.lower()] = setup_name
                 save_custom_mapping(custom_map)
         if not setup_name:
             continue
         target = os.path.join(iracing_folder, setup_name)
-        personal = os.path.join(target, cfg["personal_folder"])
+        personal = os.path.join(
+            target,
+            cfg["personal_folder"],
+            cfg["driver_folder"],
+            cfg["season_folder"],
+        )
         team = os.path.join(
             target,
             cfg["team_folder"],
@@ -857,7 +889,13 @@ def main():
             self.backup_check = QtWidgets.QCheckBox("Enable backup")
             self.backup_check.setChecked(self.cfg.get("backup_enabled", False))
             layout.addWidget(self.backup_check)
-            self.backup_entry = self._add_browse(layout, "Backup Folder", False, self.browse_backup, self.cfg.get("backup_folder", ""))
+            self.backup_entry = self._add_browse(
+                layout,
+                "Backup Folder",
+                False,
+                self.browse_backup,
+                self.cfg.get("backup_folder", ""),
+            )
             self.backup_entry.parent().setVisible(self.backup_check.isChecked())
             self.backup_check.toggled.connect(lambda v: self.backup_entry.parent().setVisible(v))
 
@@ -868,8 +906,16 @@ def main():
             self.log_entry.parent().setVisible(self.log_check.isChecked())
             self.log_check.toggled.connect(lambda v: self.log_entry.parent().setVisible(v))
 
-            self.sync_source_entry = self._add_entry(layout, "Sync Source Folder (copy from)", self.cfg.get("sync_source"))
-            self.sync_dest_entry = self._add_entry(layout, "Sync Destination Folder (copy to)", self.cfg.get("sync_destination"))
+            self.sync_source_entry = self._add_entry(
+                layout,
+                "Sync Source Folder (copy from)",
+                self.cfg.get("sync_source"),
+            )
+            self.sync_dest_entry = self._add_entry(
+                layout,
+                "Sync Destination Folder (copy to)",
+                self.cfg.get("sync_destination"),
+            )
 
             self.external_check = QtWidgets.QCheckBox("Use extra sync folders")
             self.external_check.setChecked(self.cfg.get("use_external", False))
@@ -997,7 +1043,12 @@ def main():
                 e.setVisible(use_extra)
 
         def update_driver_fields(self):
-            count = self.driver_count_spin.value() if self.driver_check.isChecked() and not self.garage_check.isChecked() else 0
+            count = (
+                self.driver_count_spin.value()
+                if self.driver_check.isChecked()
+                and not self.garage_check.isChecked()
+                else 0
+            )
             while len(self.driver_entries) < count:
                 idx = len(self.driver_entries) + 1
                 e = QtWidgets.QLineEdit()
@@ -1085,10 +1136,6 @@ def main():
     win = MainWindow(cfg)
     win.show()
     app.exec()
-
-
-
-
 
 
 if __name__ == "__main__":
