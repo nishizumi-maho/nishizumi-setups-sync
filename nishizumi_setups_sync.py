@@ -33,8 +33,7 @@ MAP_FILE = os.path.join(_BASE_DIR, "custom_car_mapping.json")
 VERSION = "1.0.0"
 # Location of the latest script version for the self-update feature
 UPDATE_URL = (
-    "https://raw.githubusercontent.com/MahoNishizumi/"
-    "nishizumi-setups-sync/main/nishizumi_setups_sync.py"
+    "https://raw.githubusercontent.com/nishizumi-maho/nishizumi-setups-sync/main/nishizumi_setups_sync.py"
 )
 
 # ---------------------- Config Handling ----------------------
