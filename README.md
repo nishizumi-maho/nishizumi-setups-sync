@@ -9,8 +9,9 @@ This repository provides a single Python script `nishizumi_setups_sync.py` to co
 - Customisable team, personal, setup supplier and season folder names.
 - Remembers the last configuration in `user_config.json`.
 - Works with any Setup supplier: select the folder or ZIP they provide.
-- Can run silently when executed with the `--silent` argument or when
-  `Run silently on startup` is enabled in the UI.
+- Can run silently when executed with the `--silent` argument or, when
+  `Run silently on startup` is enabled, if the script is launched without a
+  console (for example via `pythonw`).
   - Automatically synchronises a source folder to a destination folder for
     every car. NASCAR Cup, Xfinity and Trucks cars first share files between
     their source folders so that each variant receives new files from the
@@ -51,9 +52,9 @@ names as needed and press **Run**. The selected options are saved for next
 time. If backup is enabled, new files are copied to the backup folder on each
 execution.
 
-To automate the process on start-up, enable `Run silently on startup`. You can
-place a shortcut to execute the script (with Python) in your operating system's
-start-up folder.
+To automate the process on start-up, enable `Run silently on startup`. Place a
+shortcut that launches the script without a console (for example using
+`pythonw` or passing `--silent`) in your operating system's start-up folder.
 
 ```bash
 python nishizumi_setups_sync.py     # open the graphical interface
@@ -155,8 +156,9 @@ created or monitored inside each car directory.
 * **Hash Algorithm (file comparison)** – method used to detect changes.
 * **Copy everything (not just .sto)** – when enabled, the tool copies every
   file type instead of only `.sto` files.
-* **Run silently on startup** – if enabled, the script runs automatically with
-  the saved options and copies files without showing the interface.
+* **Run silently on startup** – if enabled, the script runs silently when
+  launched without a console (for example using `pythonw`) and otherwise shows
+  the interface.
 * **Run** – saves the options and performs the copy operation.
 * **Check for Updates** – downloads the latest version of the script when
   available.

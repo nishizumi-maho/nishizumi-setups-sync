@@ -719,7 +719,9 @@ def run_silent(cfg, ask=False):
 def main():
     cfg = load_config()
     if "--silent" in sys.argv or (
-        cfg.get("run_on_startup", False) and "--gui" not in sys.argv
+        cfg.get("run_on_startup", False)
+        and "--gui" not in sys.argv
+        and not sys.stdin.isatty()
     ):
         run_silent(cfg, ask=False)
         return
