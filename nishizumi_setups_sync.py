@@ -913,6 +913,10 @@ def main():
             self.update_garage_fields()
             self.update_mode_fields()
 
+            save_btn = QtWidgets.QPushButton("Save Config")
+            save_btn.clicked.connect(self.save_only)
+            layout.addWidget(save_btn)
+
             run_btn = QtWidgets.QPushButton("Run")
             run_btn.clicked.connect(self.save_and_run)
             layout.addWidget(run_btn)
@@ -1045,6 +1049,11 @@ def main():
             save_config(cfg)
             run_silent(cfg, ask=True)
             QtWidgets.QMessageBox.information(self, "Done", "Processing completed")
+
+        def save_only(self):
+            cfg = self.collect_config()
+            save_config(cfg)
+            QtWidgets.QMessageBox.information(self, "Saved", "Configuration saved")
 
     app = QtWidgets.QApplication(sys.argv)
     win = MainWindow(cfg)
