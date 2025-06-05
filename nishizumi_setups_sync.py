@@ -18,9 +18,6 @@ except ModuleNotFoundError:  # pragma: no cover - handle missing dependency
     sys.exit(1)
 import re
 from datetime import datetime
-import tkinter as tk
-from tkinter import filedialog, messagebox, simpledialog
-from tkinter import ttk
 
 CONFIG_FILE = "user_config.json"
 MAP_FILE = "custom_car_mapping.json"
@@ -710,72 +707,6 @@ def run_silent(cfg, ask=False):
         )
 
 
-# ---------------------- GUI ----------------------
-
-
-def browse_zip():
-    path = filedialog.askopenfilename(filetypes=[("Zip", "*.zip")])
-    if path:
-        zip_entry.delete(0, tk.END)
-        zip_entry.insert(0, path)
-
-
-def browse_src():
-    path = filedialog.askdirectory()
-    if path:
-        src_entry.delete(0, tk.END)
-        src_entry.insert(0, path)
-
-
-def browse_iracing():
-    path = filedialog.askdirectory()
-    if path:
-        iracing_entry.delete(0, tk.END)
-        iracing_entry.insert(0, path)
-
-
-def browse_backup():
-    path = filedialog.askdirectory()
-    if path:
-        backup_entry.delete(0, tk.END)
-        backup_entry.insert(0, path)
-
-
-def save_and_run():
-    cfg = {
-        "iracing_folder": iracing_entry.get().strip(),
-        "source_type": mode_var.get(),
-        "zip_file": zip_entry.get().strip(),
-        "source_folder": src_entry.get().strip(),
-        "team_folder": clean_name(team_entry.get()),
-        "personal_folder": clean_name(personal_entry.get()),
-        "driver_folder": clean_name(driver_entry.get()),
-        "season_folder": clean_name(season_entry.get()),
-        "sync_source": clean_name(sync_source_entry.get()),
-        "sync_destination": clean_name(sync_dest_entry.get()),
-        "backup_enabled": backup_var.get() == 1,
-        "backup_folder": backup_entry.get().strip(),
-        "enable_logging": log_var.get() == 1,
-        "log_file": log_entry.get().strip(),
-        "hash_algorithm": algo_var.get(),
-        "run_on_startup": startup_var.get() == 1,
-        "use_external": external_var.get() == 1,
-        "extra_folders": [clean_name(e.get()) for _, e in external_entries if e.get().strip()],
-        "copy_all": copy_all_var.get() == 1,
-        "use_driver_folders": driver_var.get() == 1,
-        "drivers": [clean_name(e.get()) for _, e in driver_entries if e.get().strip()],
-        "use_garage61": garage_var.get() == 1,
-        "garage61_team_id": team_id_entry.get().strip(),
-        "garage61_api_key": api_key_entry.get().strip(),
-    }
-    save_config(cfg)
-    run_silent(cfg, ask=True)
-    messagebox.showinfo("Done", "Processing completed")
-
-
-# ---------------------- Main ----------------------
-
-
 def main():
     cfg = load_config()
     if "--silent" in sys.argv or (
@@ -784,374 +715,271 @@ def main():
         run_silent(cfg, ask=False)
         return
 
-    global iracing_entry, zip_entry, src_entry
-    global team_entry, personal_entry, driver_entry, season_entry
-    global sync_source_entry, sync_dest_entry
-    global external_entries, external_var, extra_count_var
-    global driver_entries, driver_var, driver_count_var
-    global algo_var, mode_var, startup_var, copy_all_var
-    global garage_var, team_id_entry, api_key_entry
-    global backup_entry, backup_var
-    global log_entry, log_var
-    global anchor_widget
-
     try:
-        root = tk.Tk()
-        ttk.Style(root).theme_use("clam")
-    except tk.TclError:
+        from PySide6 import QtWidgets
+    except Exception:
         log("GUI not available, running silently", cfg)
         run_silent(cfg, ask=False)
         return
 
-    root.title("Nishizumi Setups Sync")
-    root.geometry("600x700")
-    root.resizable(False, False)
+    class MainWindow(QtWidgets.QWidget):
+        """PySide6 interface for configuring and running the tool."""
 
-    canvas = tk.Canvas(root)
-    scroll = ttk.Scrollbar(root, orient="vertical", command=canvas.yview)
-    scrollable = ttk.Frame(canvas)
-    canvas_id = canvas.create_window((0, 0), window=scrollable, anchor="nw")
+        def __init__(self, cfg):
+            super().__init__()
+            self.cfg = cfg
+            self.setWindowTitle("Nishizumi Setups Sync")
+            self.resize(600, 700)
+            self._build_ui()
 
-    def on_frame_configure(event):
-        canvas.configure(scrollregion=canvas.bbox("all"))
+        def _add_entry(self, layout, label, text="", password=False):
+            widget = QtWidgets.QWidget()
+            h = QtWidgets.QHBoxLayout(widget)
+            h.setContentsMargins(0, 0, 0, 0)
+            h.addWidget(QtWidgets.QLabel(label))
+            edit = QtWidgets.QLineEdit()
+            if password:
+                edit.setEchoMode(QtWidgets.QLineEdit.Password)
+            edit.setText(text)
+            h.addWidget(edit)
+            layout.addWidget(widget)
+            return edit
 
-    scrollable.bind("<Configure>", on_frame_configure)
+        def _add_browse(self, layout, label, file_mode, callback, text=""):
+            widget = QtWidgets.QWidget()
+            h = QtWidgets.QHBoxLayout(widget)
+            h.setContentsMargins(0, 0, 0, 0)
+            h.addWidget(QtWidgets.QLabel(label))
+            edit = QtWidgets.QLineEdit()
+            edit.setText(text)
+            btn = QtWidgets.QPushButton("Browse")
+            btn.clicked.connect(callback)
+            h.addWidget(edit)
+            h.addWidget(btn)
+            layout.addWidget(widget)
+            return edit
 
-    MAX_WIDTH = 560
+        def _build_ui(self):
+            main = QtWidgets.QVBoxLayout(self)
+            scroll = QtWidgets.QScrollArea()
+            scroll.setWidgetResizable(True)
+            main.addWidget(scroll)
+            container = QtWidgets.QWidget()
+            scroll.setWidget(container)
+            layout = QtWidgets.QVBoxLayout(container)
 
-    def on_canvas_configure(event):
-        width = min(MAX_WIDTH, event.width)
-        canvas.itemconfigure(canvas_id, width=width)
-        canvas.coords(canvas_id, (event.width - width) / 2, 0)
+            layout.addWidget(QtWidgets.QLabel("Fill the options below and press Run."))
 
-    canvas.bind("<Configure>", on_canvas_configure)
+            self.mode_combo = QtWidgets.QComboBox()
+            self.mode_combo.addItems(["zip", "folder", "none"])
+            self.mode_combo.setCurrentText(self.cfg.get("source_type", "zip"))
+            layout.addWidget(QtWidgets.QLabel("Import Mode"))
+            layout.addWidget(self.mode_combo)
 
-    canvas.configure(yscrollcommand=scroll.set)
-    canvas.pack(side="left", fill="both", expand=True)
-    scroll.pack(side="right", fill="y")
+            self.zip_entry = self._add_browse(layout, "Zip File to Import", True, self.browse_zip, self.cfg.get("zip_file", ""))
+            self.src_entry = self._add_browse(layout, "Folder to Import", False, self.browse_src, self.cfg.get("source_folder", ""))
 
-    ttk.Label(
-        scrollable,
-        text="Fill the options below and press Run.",
-    ).pack(pady=(0, 10))
+            self.team_entry = self._add_entry(layout, "Team Folder Name (destination)", self.cfg.get("team_folder"))
+            self.personal_entry = self._add_entry(layout, "Personal Folder Name (source)", self.cfg.get("personal_folder"))
+            self.driver_entry = self._add_entry(layout, "Setup Supplier Name (inside team folder)", self.cfg.get("driver_folder"))
+            self.season_entry = self._add_entry(layout, "Season Folder (inside driver folder)", self.cfg.get("season_folder"))
 
-    mode_var = tk.StringVar(value=cfg.get("source_type", "zip"))
-    algo_var = tk.StringVar(value=cfg.get("hash_algorithm", "md5"))
-    startup_var = tk.IntVar(value=1 if cfg.get("run_on_startup", False) else 0)
-    copy_all_var = tk.IntVar(value=1 if cfg.get("copy_all", False) else 0)
-    driver_var = tk.IntVar(value=1 if cfg.get("use_driver_folders", False) else 0)
-    garage_var = tk.IntVar(value=1 if cfg.get("use_garage61", False) else 0)
-    backup_var = tk.IntVar(value=1 if cfg.get("backup_enabled", False) else 0)
-    anchor_widget = None
+            self.iracing_entry = self._add_browse(layout, "iRacing Setups Folder (destination root)", False, self.browse_iracing, self.cfg.get("iracing_folder", ""))
 
-    def update_mode_fields(*args):
-        mode = mode_var.get()
-        if mode == "zip":
-            zip_frame.pack(before=anchor_widget)
-            src_frame.pack_forget()
-            for f in import_frames:
-                f.pack(before=anchor_widget)
-        elif mode == "folder":
-            src_frame.pack(before=anchor_widget)
-            zip_frame.pack_forget()
-            for f in import_frames:
-                f.pack(before=anchor_widget)
-        else:
-            zip_frame.pack_forget()
-            src_frame.pack_forget()
-            for f in import_frames:
-                f.pack_forget()
+            self.backup_check = QtWidgets.QCheckBox("Enable backup")
+            self.backup_check.setChecked(self.cfg.get("backup_enabled", False))
+            layout.addWidget(self.backup_check)
+            self.backup_entry = self._add_browse(layout, "Backup Folder", False, self.browse_backup, self.cfg.get("backup_folder", ""))
+            self.backup_entry.parent().setVisible(self.backup_check.isChecked())
+            self.backup_check.toggled.connect(lambda v: self.backup_entry.parent().setVisible(v))
 
-    zip_frame = ttk.Frame(scrollable)
-    ttk.Label(zip_frame, text="Zip File to Import").pack()
-    zip_entry = ttk.Entry(zip_frame, width=60)
-    zip_entry.insert(0, cfg.get("zip_file", ""))
-    zip_entry.pack()
-    ttk.Button(zip_frame, text="Browse", command=browse_zip).pack()
+            self.log_check = QtWidgets.QCheckBox("Enable logging")
+            self.log_check.setChecked(self.cfg.get("enable_logging", False))
+            layout.addWidget(self.log_check)
+            self.log_entry = self._add_entry(layout, "Log File", self.cfg.get("log_file"))
+            self.log_entry.parent().setVisible(self.log_check.isChecked())
+            self.log_check.toggled.connect(lambda v: self.log_entry.parent().setVisible(v))
 
-    src_frame = ttk.Frame(scrollable)
-    ttk.Label(src_frame, text="Folder to Import").pack()
-    src_entry = ttk.Entry(src_frame, width=60)
-    src_entry.insert(0, cfg.get("source_folder", ""))
-    src_entry.pack()
-    ttk.Button(src_frame, text="Browse", command=browse_src).pack()
+            self.sync_source_entry = self._add_entry(layout, "Sync Source Folder (copy from)", self.cfg.get("sync_source"))
+            self.sync_dest_entry = self._add_entry(layout, "Sync Destination Folder (copy to)", self.cfg.get("sync_destination"))
 
-    team_frame = ttk.Frame(scrollable)
-    ttk.Label(team_frame, text="Team Folder Name (destination)").pack()
-    team_entry = ttk.Entry(team_frame, width=40)
-    team_entry.insert(0, cfg.get("team_folder", ""))
-    team_entry.pack()
+            self.external_check = QtWidgets.QCheckBox("Use extra sync folders")
+            self.external_check.setChecked(self.cfg.get("use_external", False))
+            layout.addWidget(self.external_check)
+            layout.addWidget(QtWidgets.QLabel("Number of extra folders"))
+            self.extra_count_spin = QtWidgets.QSpinBox()
+            self.extra_count_spin.setRange(0, 10)
+            self.extra_count_spin.setValue(len(self.cfg.get("extra_folders", [])))
+            layout.addWidget(self.extra_count_spin)
+            self.extra_entries = []
+            self.extra_layout = QtWidgets.QVBoxLayout()
+            layout.addLayout(self.extra_layout)
+            self.extra_count_spin.valueChanged.connect(self.update_extra_fields)
+            self.update_extra_fields()
 
-    personal_frame = ttk.Frame(scrollable)
-    ttk.Label(personal_frame, text="Personal Folder Name (source)").pack()
-    personal_entry = ttk.Entry(personal_frame, width=40)
-    personal_entry.insert(0, cfg.get("personal_folder", ""))
-    personal_entry.pack()
+            layout.addWidget(QtWidgets.QLabel("Hash Algorithm (file comparison)"))
+            self.algo_combo = QtWidgets.QComboBox()
+            self.algo_combo.addItems(["md5", "sha256"])
+            self.algo_combo.setCurrentText(self.cfg.get("hash_algorithm", "md5"))
+            layout.addWidget(self.algo_combo)
 
-    driver_frame = ttk.Frame(scrollable)
-    ttk.Label(
-        driver_frame,
-        text="Setup Supplier Name (inside team folder)",
-    ).pack()
-    driver_entry = ttk.Entry(driver_frame, width=40)
-    driver_entry.insert(0, cfg.get("driver_folder", ""))
-    driver_entry.pack()
+            self.copy_all_check = QtWidgets.QCheckBox("Copy everything (not just .sto)")
+            self.copy_all_check.setChecked(self.cfg.get("copy_all", False))
+            self.copy_all_check.clicked.connect(self.on_copy_toggle)
+            layout.addWidget(self.copy_all_check)
 
-    season_frame = ttk.Frame(scrollable)
-    ttk.Label(season_frame, text="Season Folder (inside driver folder)").pack()
-    season_entry = ttk.Entry(season_frame, width=40)
-    season_entry.insert(0, cfg.get("season_folder", ""))
-    season_entry.pack()
+            self.startup_check = QtWidgets.QCheckBox("Run silently on startup")
+            self.startup_check.setChecked(self.cfg.get("run_on_startup", False))
+            layout.addWidget(self.startup_check)
 
-    import_frames = [team_frame, personal_frame, driver_frame, season_frame]
+            drivers_group = QtWidgets.QGroupBox("Driver Folders")
+            d_layout = QtWidgets.QVBoxLayout(drivers_group)
+            d_layout.addWidget(QtWidgets.QLabel("Sync setups to a common folder and each driver folder."))
+            self.garage_check = QtWidgets.QCheckBox("Use Garage61 API for drivers")
+            self.garage_check.setChecked(self.cfg.get("use_garage61", False))
+            d_layout.addWidget(self.garage_check)
+            self.team_id_entry = self._add_entry(d_layout, "Garage61 Team ID", self.cfg.get("garage61_team_id"))
+            self.api_key_entry = self._add_entry(d_layout, "Garage61 API Key", self.cfg.get("garage61_api_key"), password=True)
+            self.driver_check = QtWidgets.QCheckBox("Manually write drivers names")
+            self.driver_check.setChecked(self.cfg.get("use_driver_folders", False))
+            d_layout.addWidget(self.driver_check)
+            d_layout.addWidget(QtWidgets.QLabel("Number of drivers"))
+            self.driver_count_spin = QtWidgets.QSpinBox()
+            self.driver_count_spin.setRange(0, 10)
+            self.driver_count_spin.setValue(len(self.cfg.get("drivers", [])))
+            d_layout.addWidget(self.driver_count_spin)
+            self.driver_entries = []
+            self.driver_layout = QtWidgets.QVBoxLayout()
+            d_layout.addLayout(self.driver_layout)
+            self.driver_count_spin.valueChanged.connect(self.update_driver_fields)
+            self.update_driver_fields()
+            layout.addWidget(drivers_group)
 
-    ttk.Label(
-        scrollable,
-        text="iRacing Setups Folder (destination root)",
-    ).pack()
-    iracing_entry = ttk.Entry(scrollable, width=60)
-    iracing_entry.insert(0, cfg.get("iracing_folder", ""))
-    iracing_entry.pack()
-    ttk.Button(scrollable, text="Browse", command=browse_iracing).pack()
+            self.garage_check.toggled.connect(self.update_garage_fields)
+            self.update_garage_fields()
 
-    backup_var_chk = ttk.Checkbutton(
-        scrollable,
-        text="Enable backup",
-        variable=backup_var,
-        command=lambda: toggle_backup_fields(),
-    )
-    backup_var_chk.pack()
+            run_btn = QtWidgets.QPushButton("Run")
+            run_btn.clicked.connect(self.save_and_run)
+            layout.addWidget(run_btn)
 
-    backup_frame = ttk.Frame(scrollable)
-    ttk.Label(backup_frame, text="Backup Folder").pack()
-    backup_entry = ttk.Entry(backup_frame, width=60)
-    backup_entry.insert(0, cfg.get("backup_folder", ""))
-    backup_entry.pack()
-    ttk.Button(backup_frame, text="Browse", command=browse_backup).pack()
+            upd_btn = QtWidgets.QPushButton("Check for Updates")
+            upd_btn.clicked.connect(update_script)
+            layout.addWidget(upd_btn)
 
-    log_var = tk.IntVar(value=1 if cfg.get("enable_logging", False) else 0)
-    log_var_chk = ttk.Checkbutton(
-        scrollable,
-        text="Enable logging",
-        variable=log_var,
-        command=lambda: toggle_log_fields(),
-    )
-    log_var_chk.pack()
+        def browse_zip(self):
+            path, _ = QtWidgets.QFileDialog.getOpenFileName(self, "Select Zip", filter="Zip (*.zip)")
+            if path:
+                self.zip_entry.setText(path)
 
-    log_frame = ttk.Frame(scrollable)
-    ttk.Label(log_frame, text="Log File").pack()
-    log_entry = ttk.Entry(log_frame, width=60)
-    log_entry.insert(0, cfg.get("log_file", ""))
-    log_entry.pack()
+        def browse_src(self):
+            path = QtWidgets.QFileDialog.getExistingDirectory(self, "Select Folder")
+            if path:
+                self.src_entry.setText(path)
 
-    ttk.Label(scrollable, text="Sync Source Folder (copy from)").pack()
-    sync_source_entry = ttk.Entry(scrollable, width=40)
-    sync_source_entry.insert(0, cfg.get("sync_source", ""))
-    sync_source_entry.pack()
+        def browse_iracing(self):
+            path = QtWidgets.QFileDialog.getExistingDirectory(self, "Select iRacing Folder")
+            if path:
+                self.iracing_entry.setText(path)
 
-    ttk.Label(scrollable, text="Sync Destination Folder (copy to)").pack()
-    sync_dest_entry = ttk.Entry(scrollable, width=40)
-    sync_dest_entry.insert(0, cfg.get("sync_destination", ""))
-    sync_dest_entry.pack()
+        def browse_backup(self):
+            path = QtWidgets.QFileDialog.getExistingDirectory(self, "Select Backup Folder")
+            if path:
+                self.backup_entry.setText(path)
 
-    external_var = tk.IntVar(value=1 if cfg.get("use_external", False) else 0)
-    ttk.Checkbutton(
-        scrollable, text="Use extra sync folders", variable=external_var
-    ).pack()
+        def update_extra_fields(self):
+            count = self.extra_count_spin.value()
+            while len(self.extra_entries) < count:
+                idx = len(self.extra_entries) + 1
+                e = QtWidgets.QLineEdit()
+                if idx <= len(self.cfg.get("extra_folders", [])):
+                    e.setText(self.cfg["extra_folders"][idx - 1])
+                lbl = QtWidgets.QLabel(f"Extra Folder {idx} Name")
+                self.extra_layout.addWidget(lbl)
+                self.extra_layout.addWidget(e)
+                self.extra_entries.append((lbl, e))
+            while len(self.extra_entries) > count:
+                lbl, e = self.extra_entries.pop()
+                lbl.deleteLater()
+                e.deleteLater()
 
-    extra_frame = ttk.Frame(scrollable)
-    extra_frame.pack()
+        def update_driver_fields(self):
+            count = self.driver_count_spin.value() if self.driver_check.isChecked() and not self.garage_check.isChecked() else 0
+            while len(self.driver_entries) < count:
+                idx = len(self.driver_entries) + 1
+                e = QtWidgets.QLineEdit()
+                if idx <= len(self.cfg.get("drivers", [])):
+                    e.setText(self.cfg["drivers"][idx - 1])
+                lbl = QtWidgets.QLabel(f"Driver {idx} Name")
+                self.driver_layout.addWidget(lbl)
+                self.driver_layout.addWidget(e)
+                self.driver_entries.append((lbl, e))
+            while len(self.driver_entries) > count:
+                lbl, e = self.driver_entries.pop()
+                lbl.deleteLater()
+                e.deleteLater()
 
-    ttk.Label(extra_frame, text="Number of extra folders").pack()
-    extra_count_var = tk.IntVar(value=len(cfg.get("extra_folders", [])))
-    external_entries = []
+        def update_garage_fields(self):
+            use_api = self.garage_check.isChecked()
+            self.team_id_entry.parent().setVisible(use_api)
+            self.api_key_entry.parent().setVisible(use_api)
+            self.driver_check.setVisible(not use_api)
+            self.driver_count_spin.setEnabled(self.driver_check.isChecked() and not use_api)
+            self.update_driver_fields()
 
-    def update_extra_fields(*args):
-        count = extra_count_var.get()
-        while len(external_entries) < count:
-            idx = len(external_entries) + 1
-            lbl = ttk.Label(extra_frame, text=f"Extra Folder {idx} Name")
-            entry = ttk.Entry(extra_frame, width=40)
-            if idx <= len(cfg.get("extra_folders", [])):
-                entry.insert(0, cfg["extra_folders"][idx - 1])
-            lbl.pack()
-            entry.pack()
-            external_entries.append((lbl, entry))
-        while len(external_entries) > count:
-            lbl, entry = external_entries.pop()
-            lbl.destroy()
-            entry.destroy()
+        def on_copy_toggle(self):
+            if self.copy_all_check.isChecked():
+                reply = QtWidgets.QMessageBox.question(
+                    self,
+                    "Copy all files?",
+                    "Online sync tools usually only care about .sto files.\n"
+                    "Copying everything (.blap, .olap, .rpy, ...) may waste disk space.\n\n"
+                    "I know, proceed anyway?",
+                )
+                if reply != QtWidgets.QMessageBox.Yes:
+                    self.copy_all_check.setChecked(False)
 
-    spin = ttk.Spinbox(
-        extra_frame, from_=0, to=10, textvariable=extra_count_var, width=5
-    )
-    spin.config(command=update_extra_fields)
-    spin.pack()
-    extra_count_var.trace_add("write", lambda *a: update_extra_fields())
-    update_extra_fields()
+        def collect_config(self):
+            return {
+                "iracing_folder": self.iracing_entry.text().strip(),
+                "source_type": self.mode_combo.currentText(),
+                "zip_file": self.zip_entry.text().strip(),
+                "source_folder": self.src_entry.text().strip(),
+                "team_folder": clean_name(self.team_entry.text()),
+                "personal_folder": clean_name(self.personal_entry.text()),
+                "driver_folder": clean_name(self.driver_entry.text()),
+                "season_folder": clean_name(self.season_entry.text()),
+                "sync_source": clean_name(self.sync_source_entry.text()),
+                "sync_destination": clean_name(self.sync_dest_entry.text()),
+                "backup_enabled": self.backup_check.isChecked(),
+                "backup_folder": self.backup_entry.text().strip(),
+                "enable_logging": self.log_check.isChecked(),
+                "log_file": self.log_entry.text().strip(),
+                "hash_algorithm": self.algo_combo.currentText(),
+                "run_on_startup": self.startup_check.isChecked(),
+                "use_external": self.external_check.isChecked(),
+                "extra_folders": [clean_name(e.text()) for _, e in self.extra_entries if e.text().strip()],
+                "copy_all": self.copy_all_check.isChecked(),
+                "use_driver_folders": self.driver_check.isChecked(),
+                "drivers": [clean_name(e.text()) for _, e in self.driver_entries if e.text().strip()],
+                "use_garage61": self.garage_check.isChecked(),
+                "garage61_team_id": self.team_id_entry.text().strip(),
+                "garage61_api_key": self.api_key_entry.text().strip(),
+            }
 
-    ttk.Label(scrollable, text="Hash Algorithm (file comparison)").pack()
-    ttk.OptionMenu(scrollable, algo_var, "md5", "sha256").pack()
+        def save_and_run(self):
+            cfg = self.collect_config()
+            save_config(cfg)
+            run_silent(cfg, ask=True)
+            QtWidgets.QMessageBox.information(self, "Done", "Processing completed")
 
-    def on_copy_toggle():
-        if copy_all_var.get():
-            proceed = messagebox.askyesno(
-                "Copy all files?",
-                "Online sync tools usually only care about .sto files.\n"
-                "Copying everything (.blap, .olap, .rpy, ...) may waste disk space.\n\n"
-                "I know, proceed anyway?",
-            )
-            if not proceed:
-                copy_all_var.set(0)
+    app = QtWidgets.QApplication(sys.argv)
+    win = MainWindow(cfg)
+    win.show()
+    app.exec()
 
-    ttk.Checkbutton(
-        scrollable,
-        text="Copy everything (not just .sto)",
-        variable=copy_all_var,
-        command=on_copy_toggle,
-    ).pack()
 
-    startup_chk = ttk.Checkbutton(
-        scrollable, text="Run silently on startup", variable=startup_var
-    )
-    startup_chk.pack()
 
-    drivers_frame = ttk.LabelFrame(scrollable, text="Driver Folders")
-    ttk.Label(
-        drivers_frame,
-        text="Sync setups to a common folder and each driver folder.",
-    ).pack()
 
-    garage_chk = ttk.Checkbutton(
-        drivers_frame,
-        text="Use Garage61 API for drivers",
-        variable=garage_var,
-        command=lambda: toggle_garage_api(),
-    )
-    garage_chk.pack(anchor="w")
-
-    team_id_frame = ttk.Frame(drivers_frame)
-    ttk.Label(team_id_frame, text="Garage61 Team ID").pack()
-    team_id_entry = ttk.Entry(team_id_frame, width=40)
-    team_id_entry.insert(0, cfg.get("garage61_team_id", ""))
-    team_id_entry.pack()
-
-    api_key_frame = ttk.Frame(drivers_frame)
-    ttk.Label(api_key_frame, text="Garage61 API Key").pack()
-    api_key_entry = ttk.Entry(api_key_frame, width=40, show="*")
-    api_key_entry.insert(0, cfg.get("garage61_api_key", ""))
-    api_key_entry.pack()
-
-    driver_chk = ttk.Checkbutton(
-        drivers_frame,
-        text="Manually write drivers names",
-        variable=driver_var,
-        command=lambda: toggle_driver_fields(),
-    )
-    driver_chk.pack(anchor="w")
-
-    driver_frame = ttk.Frame(drivers_frame)
-    ttk.Label(driver_frame, text="Number of drivers").pack()
-    driver_count_var = tk.IntVar(value=len(cfg.get("drivers", [])))
-    driver_entries = []
-
-    def update_driver_fields(*args):
-        count = driver_count_var.get()
-        while len(driver_entries) < count:
-            idx = len(driver_entries) + 1
-            lbl = ttk.Label(driver_frame, text=f"Driver {idx} Name")
-            entry = ttk.Entry(driver_frame, width=40)
-            if idx <= len(cfg.get("drivers", [])):
-                entry.insert(0, cfg["drivers"][idx - 1])
-            lbl.pack()
-            entry.pack()
-            driver_entries.append((lbl, entry))
-        while len(driver_entries) > count:
-            lbl, entry = driver_entries.pop()
-            lbl.destroy()
-            entry.destroy()
-
-    driver_spin = ttk.Spinbox(
-        driver_frame, from_=0, to=10, textvariable=driver_count_var, width=5
-    )
-    driver_spin.config(command=update_driver_fields)
-    driver_spin.pack()
-    driver_count_var.trace_add("write", lambda *a: update_driver_fields())
-    update_driver_fields()
-
-    drivers_frame.pack(pady=5)
-
-    ttk.Label(scrollable, text="Import Mode").pack()
-    ttk.Radiobutton(
-        scrollable,
-        text="Zip Import",
-        variable=mode_var,
-        value="zip",
-        command=update_mode_fields,
-    ).pack(anchor="w")
-    ttk.Radiobutton(
-        scrollable,
-        text="Folder Import",
-        variable=mode_var,
-        value="folder",
-        command=update_mode_fields,
-    ).pack(anchor="w")
-    ttk.Radiobutton(
-        scrollable,
-        text="No Import",
-        variable=mode_var,
-        value="none",
-        command=update_mode_fields,
-    ).pack(anchor="w")
-
-    run_btn = ttk.Button(scrollable, text="Run", command=save_and_run)
-    run_btn.pack(pady=10)
-
-    ttk.Button(scrollable, text="Check for Updates", command=update_script).pack(
-        pady=(0, 10)
-    )
-
-    def toggle_backup_fields():
-        if backup_var.get():
-            backup_frame.pack(after=backup_var_chk)
-        else:
-            backup_frame.pack_forget()
-
-    def toggle_log_fields():
-        if log_var.get():
-            log_frame.pack(after=log_var_chk)
-        else:
-            log_frame.pack_forget()
-
-    def toggle_driver_fields():
-        if driver_var.get() and not garage_var.get():
-            driver_frame.pack()
-        else:
-            driver_frame.pack_forget()
-
-    def toggle_garage_api():
-        if garage_var.get():
-            team_id_frame.pack()
-            api_key_frame.pack()
-            driver_chk.pack_forget()
-            driver_frame.pack_forget()
-        else:
-            team_id_frame.pack_forget()
-            api_key_frame.pack_forget()
-            driver_chk.pack(anchor="w")
-            toggle_driver_fields()
-
-    toggle_backup_fields()
-
-    toggle_driver_fields()
-    toggle_garage_api()
-    toggle_log_fields()
-
-    anchor_widget = run_btn
-    update_mode_fields()
-
-    root.update_idletasks()
-    root.mainloop()
 
 
 if __name__ == "__main__":
