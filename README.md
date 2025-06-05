@@ -8,10 +8,10 @@ This repository provides Python script `nishizumi_setups_sync.py` to copy iRacin
 
 ## Features
 
-- Import setups from a ZIP archive or from another folder, or skip importing entirely.
+- Import setups from a ZIP or RAR archive or from another folder, or skip importing entirely.
 - Customisable team, personal, setup supplier folder and season folder names.
 - Remembers the last configuration in `user_config.json`.
-- Works with any Setup supplier: select the folder or ZIP they provide.
+- Works with any Setup supplier: select the folder or ZIP/RAR they provide.
 - Can run silently when executed with the `--silent` argument or, when
   `Run silently on startup` is enabled, if the script is launched without a
   console (for example via `pythonw`).
@@ -60,7 +60,7 @@ pip install -r requirements.txt
 ## Usage
 
 Run the script and choose the iRacing setups folder. Depending on the selected
-import mode you may also pick a ZIP file or a source folder. Configure folder
+import mode you may also pick a ZIP or RAR file or a source folder. Configure folder
 names as needed and press **Run**. The selected options are saved for next
 time. If backup is enabled, the iRacing folder is copied to the first backup
 location before any syncing occurs and again to the second location after
@@ -78,7 +78,7 @@ python nishizumi_setups_sync.py --gui     # force the graphical interface even i
 python nishizumi_setups_sync.py --update  # download the latest version
 ```
 
-If the configured iRacing folder, zip file or source folder is missing when
+If the configured iRacing folder, ZIP/RAR file or source folder is missing when
 running silently, the script prints a message and exits without copying.
 
 If the GUI cannot start because no display is available (for example when
@@ -90,11 +90,11 @@ in the console instead of a popup dialog.
 
 1. Run `python nishizumi_setups_sync.py` to open the interface.
 2. Select your **iRacing Setups Folder path** using the folder browser and choose
-   whether to import from a ZIP file or from another folder.
+   whether to import from a ZIP/RAR file or from another folder.
 3. Fill in the team, personal, setup supplier folder and season folder names
    with *folder names only*. These folders must exist inside your iRacing setups
    folder and will be created automatically if they do not. The script uses
-   these folders inside every car directory. When importing from a ZIP or
+   these folders inside every car directory. When importing from a ZIP/RAR or
    folder, the personal folder also includes the setup supplier and season
    subfolders so the structure matches the team folder.
 4. Optionally enable backup or logging and browse to the **Backup Folder (before)**,
@@ -137,18 +137,18 @@ not exist.
 * **Backup Folder (after)** – directory for the post-run backup.
 * **Enable logging** – write operations to a log file during execution.
 * **Log File** – path of the file used when logging is enabled.
-* **Import Mode** – choose **Zip Import** to unpack a ZIP file,
+* **Import Mode** – choose **Zip Import** to unpack a ZIP or RAR file,
   **Folder Import** to copy from an existing folder, or **No Import** to skip
   importing and only synchronise existing files. When **No Import** is
-  selected, the path fields for the ZIP file and source folder are hidden,
+  selected, the path fields for the archive file and source folder are hidden,
   along with the team and personal folder fields.
-* **Zip File to Import** – archive path when using Zip Import.
+* **Archive File to Import** – path when using Zip Import (ZIP or RAR).
 * **Folder to Import** – folder to copy from when using Folder Import.
 * **Team Folder Name (destination)** – team directory to place files in
   (default `Example Team`). Use only the folder name; do not include a path.
 * **Personal Folder Name (source)** – your personal folder that provides
   files (default `My Personal Folder`). Name only, no path. When importing
-  from a ZIP or folder this folder also contains the setup supplier and
+  from a ZIP/RAR or folder this folder also contains the setup supplier and
   season subfolders, mirroring the team folder layout.
 * **Setup Supplier Folder Name (inside team folder)** – subfolder for your
   setup supplier name (default `Example Supplier`). Invalid characters and
