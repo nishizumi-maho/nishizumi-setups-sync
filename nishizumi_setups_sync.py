@@ -60,6 +60,8 @@ DEFAULT_CONFIG = {
     "sync_destination": "Example Destination",
     "hash_algorithm": "md5",
     "run_on_startup": False,
+    "tray_mode": False,
+    "tray_interval": 2,
     "use_external": False,
     # extra_folders is a list of dicts: {"name": str, "location": "car"|"dest"}
     # older configs may store just a list of folder names
@@ -1034,6 +1036,38 @@ def run_silent(cfg, ask=False):
         )
 
 
+def run_tray(cfg, MainWindow):
+    """Run in the system tray and rescan periodically."""
+    try:
+        from PySide6 import QtWidgets, QtGui, QtCore
+    except Exception:  # pragma: no cover - PySide may be missing
+        log("PySide6 not available, falling back to silent mode", cfg)
+        run_silent(cfg, ask=False)
+        return
+
+    app = QtWidgets.QApplication.instance() or QtWidgets.QApplication(sys.argv)
+    win = MainWindow(cfg)
+    win.hide()
+    icon_path = os.path.join(_BASE_DIR, "icon.png")
+    icon = QtGui.QIcon(icon_path) if os.path.exists(icon_path) else app.windowIcon()
+    tray = QtWidgets.QSystemTrayIcon(icon)
+    menu = QtWidgets.QMenu()
+    open_action = menu.addAction("Open")
+    quit_action = menu.addAction("Quit")
+    open_action.triggered.connect(win.show)
+    quit_action.triggered.connect(app.quit)
+    tray.setContextMenu(menu)
+    tray.activated.connect(lambda r: win.show() if r == QtWidgets.QSystemTrayIcon.Trigger else None)
+    tray.show()
+
+    interval_h = max(1, int(cfg.get("tray_interval", 2)))
+    timer = QtCore.QTimer()
+    timer.timeout.connect(lambda: run_silent(cfg, ask=False))
+    timer.start(interval_h * 60 * 60 * 1000)
+    run_silent(cfg, ask=False)
+    app.exec()
+
+
 def main():
     cfg = load_config()
     if "--silent" in sys.argv or (
@@ -1251,6 +1285,21 @@ def main():
             self.startup_check = QtWidgets.QCheckBox("Run silently on startup")
             self.startup_check.setChecked(self.cfg.get("run_on_startup", False))
             layout.addWidget(self.startup_check)
+
+            tray_widget = QtWidgets.QWidget()
+            th = QtWidgets.QHBoxLayout(tray_widget)
+            th.setContentsMargins(0, 0, 0, 0)
+            self.tray_check = QtWidgets.QCheckBox("Stay in system tray and rescan every")
+            self.tray_check.setChecked(self.cfg.get("tray_mode", False))
+            th.addWidget(self.tray_check)
+            self.interval_spin = QtWidgets.QSpinBox()
+            self.interval_spin.setRange(1, 24)
+            self.interval_spin.setValue(self.cfg.get("tray_interval", 2))
+            th.addWidget(self.interval_spin)
+            th.addWidget(QtWidgets.QLabel("hours"))
+            layout.addWidget(tray_widget)
+            self.interval_spin.setEnabled(self.tray_check.isChecked())
+            self.tray_check.toggled.connect(self.interval_spin.setEnabled)
 
             drivers_group = QtWidgets.QGroupBox("Driver Folders")
             d_layout = QtWidgets.QVBoxLayout(drivers_group)
@@ -1505,6 +1554,8 @@ def main():
                 "log_file": self.log_entry.text().strip(),
                 "hash_algorithm": self.algo_combo.currentText(),
                 "run_on_startup": self.startup_check.isChecked(),
+                "tray_mode": self.tray_check.isChecked(),
+                "tray_interval": self.interval_spin.value(),
                 "use_external": self.external_check.isChecked(),
                 "extra_folders": [
                     {
@@ -1540,6 +1591,26 @@ def main():
             QtWidgets.QMessageBox.information(self, "Saved", "Configuration saved")
 
     app = QtWidgets.QApplication(sys.argv)
+
+    if (
+        "--tray" in sys.argv
+        or (
+            cfg.get("run_on_startup", False)
+            and cfg.get("tray_mode", False)
+            and "--gui" not in sys.argv
+        )
+    ):
+        run_tray(cfg, MainWindow)
+        return
+
+    if "--silent" in sys.argv or (
+        cfg.get("run_on_startup", False)
+        and "--gui" not in sys.argv
+        and not sys.stdin.isatty()
+    ):
+        run_silent(cfg, ask=False)
+        return
+
     win = MainWindow(cfg)
     win.show()
     app.exec()
