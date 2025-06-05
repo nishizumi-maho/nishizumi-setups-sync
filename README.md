@@ -185,6 +185,15 @@ share or run this file directly without needing Python. The program stores its
 configuration in `user_config.json` next to the executable, so ensure the folder
 containing the `.exe` allows write access.
 
+> **Warning**
+> At the moment packaging the script as an executable does not work correctly.
+> The configuration is not saved persistently when running the `.exe`, so for now
+> you should run the script with Python instead:
+>
+> ```bash
+> python nishizumi_setups_sync.py
+> ```
+
 ## Future Ideas
 
 Some potential improvements for later versions:
