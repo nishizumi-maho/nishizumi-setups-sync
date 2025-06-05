@@ -756,6 +756,74 @@ def process_zip(zip_file, cfg, ask=False):
     shutil.rmtree(extract_path, ignore_errors=True)
 
 
+# ---------------------- Sync Handling ----------------------
+
+
+def perform_sync(ir_folder, cfg):
+    """Synchronise configured folders regardless of import mode."""
+    src_name = cfg.get("sync_source")
+    dst_name = cfg.get("sync_destination")
+    if not src_name or not dst_name:
+        log("Sync source or destination not configured, skipping", cfg)
+        return
+
+    if cfg.get("use_garage61") and cfg.get("garage61_team_id"):
+        names = fetch_garage61_drivers(
+            cfg.get("garage61_team_id"), cfg.get("garage61_api_key")
+        )
+        if names is not None:
+            cfg["drivers"] = [clean_name(n) for n in names if n]
+            save_config(cfg)
+
+    if cfg.get("use_external") and cfg.get("extra_folders"):
+        merge_external_into_source(
+            ir_folder,
+            cfg["extra_folders"],
+            src_name,
+            cfg["hash_algorithm"],
+            cfg.get("copy_all", False),
+            drivers=(
+                [clean_name(n) for n in cfg.get("drivers", [])]
+                if cfg.get("use_driver_folders")
+                else None
+            ),
+            driver_style=cfg.get("use_driver_folders", False),
+        )
+
+    drivers = (
+        [clean_name(n) for n in cfg.get("drivers", [])]
+        if cfg.get("use_driver_folders")
+        else None
+    )
+    if drivers is not None:
+        remove_unknown_driver_folders(ir_folder, dst_name, drivers)
+
+    sync_nascar_source_folders(
+        ir_folder,
+        src_name,
+        cfg["hash_algorithm"],
+        drivers=drivers,
+        driver_style=cfg.get("use_driver_folders", False),
+    )
+    sync_team_folders(
+        ir_folder,
+        src_name,
+        dst_name,
+        cfg["hash_algorithm"],
+        cfg.get("copy_all", False),
+        drivers,
+        driver_style=cfg.get("use_driver_folders", False),
+    )
+    sync_data_pack_folders(
+        ir_folder,
+        src_name,
+        dst_name,
+        cfg["hash_algorithm"],
+        cfg.get("copy_all", False),
+    )
+    sync_nascar_data_packs(ir_folder, dst_name, cfg["hash_algorithm"])
+
+
 # ---------------------- Silent Entry ----------------------
 
 
@@ -788,61 +856,7 @@ def run_silent(cfg, ask=False):
     else:
         log("No import selected", cfg)
 
-    src_name = cfg.get("sync_source")
-    dst_name = cfg.get("sync_destination")
-    if src_name and dst_name:
-        if cfg.get("use_garage61") and cfg.get("garage61_team_id"):
-            names = fetch_garage61_drivers(
-                cfg.get("garage61_team_id"), cfg.get("garage61_api_key")
-            )
-            if names is not None:
-                cfg["drivers"] = [clean_name(n) for n in names if n]
-                save_config(cfg)
-        if cfg.get("use_external") and cfg.get("extra_folders"):
-            merge_external_into_source(
-                ir_folder,
-                cfg["extra_folders"],
-                src_name,
-                cfg["hash_algorithm"],
-                cfg.get("copy_all", False),
-                drivers=(
-                    [clean_name(n) for n in cfg.get("drivers", [])]
-                    if cfg.get("use_driver_folders")
-                    else None
-                ),
-                driver_style=cfg.get("use_driver_folders", False),
-            )
-        drivers = (
-            [clean_name(n) for n in cfg.get("drivers", [])]
-            if cfg.get("use_driver_folders")
-            else None
-        )
-        if drivers is not None:
-            remove_unknown_driver_folders(ir_folder, dst_name, drivers)
-        sync_nascar_source_folders(
-            ir_folder,
-            src_name,
-            cfg["hash_algorithm"],
-            drivers=drivers,
-            driver_style=cfg.get("use_driver_folders", False),
-        )
-        sync_team_folders(
-            ir_folder,
-            src_name,
-            dst_name,
-            cfg["hash_algorithm"],
-            cfg.get("copy_all", False),
-            drivers,
-            driver_style=cfg.get("use_driver_folders", False),
-        )
-        sync_data_pack_folders(
-            ir_folder,
-            src_name,
-            dst_name,
-            cfg["hash_algorithm"],
-            cfg.get("copy_all", False),
-        )
-    sync_nascar_data_packs(ir_folder, dst_name, cfg["hash_algorithm"])
+    perform_sync(ir_folder, cfg)
 
 
 def main():
