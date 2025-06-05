@@ -1,0 +1,29 @@
+name: Update requirements lock
+
+on:
+  push:
+    paths: [ 'requirements.txt' ]
+  schedule:
+    - cron: '0 0 * * 0'
+  workflow_dispatch:
+
+jobs:
+  compile:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v4
+        with:
+          python-version: '3.x'
+      - name: Install pip-tools
+        run: pip install pip-tools
+      - name: Compile lock file
+        run: pip-compile --output-file=requirements.lock requirements.txt
+      - name: Commit changes
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: 'Update requirements.lock'
+          file_pattern: requirements.lock
+          commit_user_name: GitHub Actions
+          commit_user_email: actions@github.com
+

@@ -58,10 +58,12 @@ This repository provides Python script `nishizumi_setups_sync.py` to copy iRacin
 
 ## Installation
 
-Install Python 3.9 or later and the required dependencies:
+Install Python 3.9 or later and the required dependencies. Exact versions are
+listed in `requirements.txt` and a `requirements.lock` file is maintained with
+`pip-tools`:
 
 ```bash
-pip install -r requirements.txt
+pip install -r requirements.txt  # or use requirements.lock for exact versions
 ```
 
 ## Usage
