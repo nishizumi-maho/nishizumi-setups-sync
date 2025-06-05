@@ -466,13 +466,7 @@ def sync_team_folders(
                         name,
                         "Data packs",
                     )
-                    sync_folders(
-                        src_dp,
-                        dp_dst,
-                        algorithm,
-                        delete_extras=False,
-                        copy_all=copy_all,
-                    )
+                    copy_missing_files(src_dp, dp_dst, copy_all)
             sync_folders(
                 src,
                 dest_root,
@@ -577,13 +571,7 @@ def merge_external_into_source(
                         driver_name,
                         folder_name,
                     )
-                    sync_folders(
-                        ext,
-                        dst,
-                        algorithm,
-                        delete_extras=False,
-                        copy_all=copy_all,
-                    )
+                    copy_missing_files(ext, dst, copy_all)
             else:
                 dst = os.path.join(car_dir, src_name, folder_name)
                 sync_folders(
@@ -656,10 +644,6 @@ def sync_nascar_source_folders(
                 common = os.path.join(base, COMMON_FOLDER)
                 if os.path.exists(common):
                     paths.append(common)
-                for name in drivers:
-                    p = os.path.join(base, DRIVERS_ROOT, name)
-                    if os.path.exists(p):
-                        paths.append(p)
             else:
                 if os.path.exists(base):
                     paths.append(base)
@@ -841,23 +825,32 @@ def copy_from_source(source, iracing_folder, cfg, ask=False):
     custom_map = load_custom_mapping()
     subfolders = [f.name for f in os.scandir(source) if f.is_dir()]
 
-    def _import_dir(src_path, dest):
-        os.makedirs(dest, exist_ok=True)
-        for item in os.listdir(src_path):
-            s = os.path.join(src_path, item)
-            d = os.path.join(dest, item)
-            if os.path.isdir(s):
-                if not os.path.exists(d):
-                    shutil.copytree(s, d)
-                else:
-                    sync_folders(
-                        s,
-                        d,
-                        cfg["hash_algorithm"],
-                        copy_all=cfg.get("copy_all", False),
-                    )
-            elif cfg.get("copy_all", False) or item.lower().endswith(".sto"):
-                shutil.copy2(s, d)
+    def _import_dir(src_path, dest, overwrite=True):
+        """Copy ``src_path`` into ``dest``.
+
+        When ``overwrite`` is ``True`` existing files are updated using
+        :func:`sync_folders`. When ``False`` only missing files are copied
+        without any hash checks.
+        """
+        if overwrite:
+            os.makedirs(dest, exist_ok=True)
+            for item in os.listdir(src_path):
+                s = os.path.join(src_path, item)
+                d = os.path.join(dest, item)
+                if os.path.isdir(s):
+                    if not os.path.exists(d):
+                        shutil.copytree(s, d)
+                    else:
+                        sync_folders(
+                            s,
+                            d,
+                            cfg["hash_algorithm"],
+                            copy_all=cfg.get("copy_all", False),
+                        )
+                elif cfg.get("copy_all", False) or item.lower().endswith(".sto"):
+                    shutil.copy2(s, d)
+        else:
+            copy_missing_files(src_path, dest, cfg.get("copy_all", False))
 
     driver_mode = cfg.get("use_driver_folders")
     drivers = [clean_name(n) for n in cfg.get("drivers", [])] if driver_mode else []
@@ -882,7 +875,7 @@ def copy_from_source(source, iracing_folder, cfg, ask=False):
             # Copy to Common and each driver folder
             for base in [personal_base, team_base]:
                 common = os.path.join(base, COMMON_FOLDER, supplier, season)
-                _import_dir(src_path, common)
+                _import_dir(src_path, common, overwrite=True)
                 for name in drivers:
                     dpath = os.path.join(
                         base,
@@ -891,7 +884,7 @@ def copy_from_source(source, iracing_folder, cfg, ask=False):
                         supplier,
                         season,
                     )
-                    _import_dir(src_path, dpath)
+                    _import_dir(src_path, dpath, overwrite=False)
         else:
             personal = os.path.join(personal_base, supplier, season)
             team = os.path.join(team_base, supplier, season)
