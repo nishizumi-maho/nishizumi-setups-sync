@@ -71,14 +71,26 @@ running on a server), the script also falls back to silent mode.
 ## How to Use
 
 1. Run `python nishizumi_setups_sync.py` to open the interface.
-2. Select your **iRacing Setups Folder path** and choose whether to import from a
-   ZIP file or from another folder.
-3. Fill in the team, personal, setup supplier and season folders as desired. **You shall only add the folder's name here**.
-4. Optionally enable backup or logging and choose where these files will be
-   stored.
+2. Select your **iRacing Setups Folder path** using the folder browser and choose
+   whether to import from a ZIP file or from another folder.
+3. Fill in the team, personal, setup supplier and season folders with *folder
+   names only*. The script creates or uses folders with these names inside every
+   car directory.
+4. Optionally enable backup or logging and browse to the **Backup Folder** and
+   log file locations.
 5. Press **Run** to perform the import and sync. The settings are saved for the
    next time you open the tool.
 6. Click **Check for Updates** to fetch the latest version when needed.
+
+### Example Configuration
+
+```
+iRacing Setups Folder: C:\iRacing\setups
+Backup Folder:        D:\SetupsBackup
+Team Folder Name:     MyTeam
+Personal Folder Name: DriverOne
+Season Folder:        2025S1
+```
 
 ## Interface Guide
 
@@ -86,10 +98,16 @@ When running without `--silent`, the script shows a window where you can
 configure how setups are imported. The window resizes automatically to fit all
 options. Each setting is saved in `user_config.json` for the next run.
 
+Only the **iRacing Setups Folder** and **Backup Folder** fields expect full
+paths. Every other folder input should contain just a folder name that will be
+created or monitored inside each car directory.
+
 * **iRacing Setups Folder** – root folder that stores all car setup folders.
+  Select the full path using the folder browser.
 * **Enable backup** – when checked, a copy of new files is stored in the
   specified backup folder each time the program runs.
 * **Backup Folder** – directory where backups are placed when backup is enabled.
+  Provide the full path here.
 * **Enable logging** – write operations to a log file during execution.
 * **Log File** – path of the file used when logging is enabled.
 * **Import Mode** – choose **Zip Import** to unpack a ZIP file,
@@ -100,19 +118,19 @@ options. Each setting is saved in `user_config.json` for the next run.
 * **Zip File to Import** – archive path when using Zip Import.
 * **Folder to Import** – folder to copy from when using Folder Import.
 * **Team Folder Name (destination)** – team directory to place files in
-  (default `Example Team`).
+  (default `Example Team`). Use only the folder name; do not include a path.
 * **Personal Folder Name (source)** – your personal folder that provides
-  files (default `My Personal Folder`).
+  files (default `My Personal Folder`). Name only, no path.
 * **Setup Supplier Name (inside team folder)** – subfolder for your setup
   supplier name (default `Example Supplier`). Invalid characters and
-  trailing spaces are automatically removed.
+  trailing spaces are automatically removed. Name only.
 * **Season Folder (inside driver folder)** – season subfolder
-  (default `Example Season`).
+  (default `Example Season`). Name only.
 * **Sync Source Folder (copy from)** – name of the source folder in each car
-  directory (default `Example Source`).
+  directory (default `Example Source`). Name only.
 * **Sync Destination Folder (copy to)** – destination folder name in each car
   directory (default `Example Destination`). The `Data packs` subfolder is
-  synced automatically.
+  synced automatically. Name only.
 * **Driver Folders** – sync setups to a common folder and optionally to each
   driver’s personal folder.
 * **Use Garage61 API for drivers** – when enabled, the driver list is fetched
@@ -125,13 +143,13 @@ options. Each setting is saved in `user_config.json` for the next run.
   folder and to each driver name without overwriting their custom versions.
 * **Number of drivers** – how many driver folders to create when manual entry is
   enabled.
-* **Driver N Name** – text fields for each driver folder name.
+* **Driver N Name** – text fields for each driver folder name. Use names only.
 * **Use extra sync folders** – when enabled, the additional folders listed below
   are copied as subfolders inside the source folder for every car before the
   usual sync copies the files to the team folder.
 * **Number of extra folders** – how many additional folder names to provide.
 * **Extra Folder N Name** – the name of each folder created by external sync
-  tools (for example `ExampleTool`).
+  tools (for example `ExampleTool`). Name only.
 * **Hash Algorithm (file comparison)** – method used to detect changes.
 * **Copy everything (not just .sto)** – when enabled, the tool copies every
   file type instead of only `.sto` files.
