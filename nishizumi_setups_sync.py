@@ -321,6 +321,7 @@ def sync_team_folders(
     algorithm="md5",
     copy_all=False,
     drivers=None,
+    driver_style=False,
 ):
     """Copy source subfolder ``src_name`` to ``dest_name`` for each car.
 
@@ -337,7 +338,19 @@ def sync_team_folders(
         if not os.path.exists(src):
             continue
 
-        if drivers:
+        if drivers and driver_style:
+            src_common = os.path.join(src, COMMON_FOLDER)
+            if os.path.exists(src_common):
+                common = os.path.join(dest_root, COMMON_FOLDER)
+                sync_folders(src_common, common, algorithm, copy_all=copy_all)
+            for name in drivers:
+                sdriver = os.path.join(src, DRIVERS_ROOT, name)
+                target = os.path.join(dest_root, DRIVERS_ROOT, name)
+                if os.path.exists(sdriver):
+                    copy_missing_files(sdriver, target, copy_all)
+                elif os.path.exists(src_common):
+                    copy_missing_files(src_common, target, copy_all)
+        elif drivers:
             common = os.path.join(dest_root, COMMON_FOLDER)
             sync_folders(src, common, algorithm, copy_all=copy_all)
             for name in drivers:
@@ -369,11 +382,15 @@ def merge_external_into_source(
     src_name,
     algorithm="md5",
     copy_all=False,
+    drivers=None,
+    driver_style=False,
 ):
     """Copy one or more external folders into the source folder for each car.
 
     Each folder name in ``ext_names`` will be copied from ``<car>/<name>`` to
-    ``<car>/<src_name>/<name>`` without removing existing files.
+    ``<car>/<src_name>/<name>`` without removing existing files. When
+    ``driver_style`` is ``True`` the folders are copied into ``Common Setups``
+    and each driver directory inside ``src_name``.
     """
     if isinstance(ext_names, str):
         ext_names = [ext_names]
@@ -386,8 +403,41 @@ def merge_external_into_source(
             ext = os.path.join(car_dir, ext_name)
             if not os.path.exists(ext):
                 continue
-            dst = os.path.join(car_dir, src_name, ext_name)
-            sync_folders(ext, dst, algorithm, delete_extras=False, copy_all=copy_all)
+            if driver_style and drivers is not None:
+                common_dst = os.path.join(
+                    car_dir, src_name, COMMON_FOLDER, ext_name
+                )
+                sync_folders(
+                    ext,
+                    common_dst,
+                    algorithm,
+                    delete_extras=False,
+                    copy_all=copy_all,
+                )
+                for name in drivers:
+                    dst = os.path.join(
+                        car_dir,
+                        src_name,
+                        DRIVERS_ROOT,
+                        name,
+                        ext_name,
+                    )
+                    sync_folders(
+                        ext,
+                        dst,
+                        algorithm,
+                        delete_extras=False,
+                        copy_all=copy_all,
+                    )
+            else:
+                dst = os.path.join(car_dir, src_name, ext_name)
+                sync_folders(
+                    ext,
+                    dst,
+                    algorithm,
+                    delete_extras=False,
+                    copy_all=copy_all,
+                )
 
 
 def sync_data_pack_folders(
@@ -436,15 +486,26 @@ def sync_group_folders(
             sync_folders(source_path, dest, algorithm, copy_all=copy_all)
 
 
-def sync_nascar_source_folders(iracing_folder, src_name, algorithm="md5"):
+def sync_nascar_source_folders(
+    iracing_folder, src_name, algorithm="md5", drivers=None, driver_style=False
+):
     """Synchronise the source folder across all cars in each NASCAR group."""
     for group in ["nascar nextgen", "nascar xfinity", "nascar trucks"]:
         cars = CAR_GROUPS.get(group, [])
         paths = []
         for car in cars:
-            p = os.path.join(iracing_folder, car, src_name)
-            if os.path.exists(p):
-                paths.append(p)
+            base = os.path.join(iracing_folder, car, src_name)
+            if driver_style and drivers is not None:
+                common = os.path.join(base, COMMON_FOLDER)
+                if os.path.exists(common):
+                    paths.append(common)
+                for name in drivers:
+                    p = os.path.join(base, DRIVERS_ROOT, name)
+                    if os.path.exists(p):
+                        paths.append(p)
+            else:
+                if os.path.exists(base):
+                    paths.append(base)
         for i in range(len(paths)):
             for j in range(i + 1, len(paths)):
                 sync_bidirectional(paths[i], paths[j], algorithm)
@@ -622,6 +683,28 @@ def _prompt_map_folder(folder):
 def copy_from_source(source, iracing_folder, cfg, ask=False):
     custom_map = load_custom_mapping()
     subfolders = [f.name for f in os.scandir(source) if f.is_dir()]
+
+    def _import_dir(src_path, dest):
+        os.makedirs(dest, exist_ok=True)
+        for item in os.listdir(src_path):
+            s = os.path.join(src_path, item)
+            d = os.path.join(dest, item)
+            if os.path.isdir(s):
+                if not os.path.exists(d):
+                    shutil.copytree(s, d)
+                else:
+                    sync_folders(
+                        s,
+                        d,
+                        cfg["hash_algorithm"],
+                        copy_all=cfg.get("copy_all", False),
+                    )
+            elif cfg.get("copy_all", False) or item.lower().endswith(".sto"):
+                shutil.copy2(s, d)
+
+    driver_mode = cfg.get("use_driver_folders")
+    drivers = [clean_name(n) for n in cfg.get("drivers", [])] if driver_mode else []
+
     for folder in subfolders:
         setup_name = identify_setup(folder, custom_map)
         if not setup_name and ask:
@@ -632,51 +715,31 @@ def copy_from_source(source, iracing_folder, cfg, ask=False):
         if not setup_name:
             continue
         target = os.path.join(iracing_folder, setup_name)
-        personal = os.path.join(
-            target,
-            cfg["personal_folder"],
-            cfg["driver_folder"],
-            cfg["season_folder"],
-        )
-        team = os.path.join(
-            target,
-            cfg["team_folder"],
-            cfg["driver_folder"],
-            cfg["season_folder"],
-        )
-        for p in [personal, team]:
-            os.makedirs(p, exist_ok=True)
+        personal_base = os.path.join(target, cfg["personal_folder"])
+        team_base = os.path.join(target, cfg["team_folder"])
+        supplier = cfg["driver_folder"]
+        season = cfg["season_folder"]
         src_path = os.path.join(source, folder)
-        for item in os.listdir(src_path):
-            s = os.path.join(src_path, item)
-            dp = os.path.join(personal, item)
-            if os.path.isdir(s):
-                if not os.path.exists(dp):
-                    shutil.copytree(s, dp)
-                else:
-                    sync_folders(
-                        s,
-                        dp,
-                        cfg["hash_algorithm"],
-                        copy_all=cfg.get("copy_all", False),
+
+        if driver_mode:
+            # Copy to Common and each driver folder
+            for base in [personal_base, team_base]:
+                common = os.path.join(base, COMMON_FOLDER, supplier, season)
+                _import_dir(src_path, common)
+                for name in drivers:
+                    dpath = os.path.join(
+                        base,
+                        DRIVERS_ROOT,
+                        name,
+                        supplier,
+                        season,
                     )
-            elif cfg.get("copy_all", False) or item.lower().endswith(".sto"):
-                shutil.copy2(s, dp)
-        for item in os.listdir(src_path):
-            s = os.path.join(src_path, item)
-            dp = os.path.join(team, item)
-            if os.path.isdir(s):
-                if not os.path.exists(dp):
-                    shutil.copytree(s, dp)
-                else:
-                    sync_folders(
-                        s,
-                        dp,
-                        cfg["hash_algorithm"],
-                        copy_all=cfg.get("copy_all", False),
-                    )
-            elif cfg.get("copy_all", False) or item.lower().endswith(".sto"):
-                shutil.copy2(s, dp)
+                    _import_dir(src_path, dpath)
+        else:
+            personal = os.path.join(personal_base, supplier, season)
+            team = os.path.join(team_base, supplier, season)
+            _import_dir(src_path, personal)
+            _import_dir(src_path, team)
 
 
 def process_zip(zip_file, cfg, ask=False):
@@ -742,6 +805,12 @@ def run_silent(cfg, ask=False):
                 src_name,
                 cfg["hash_algorithm"],
                 cfg.get("copy_all", False),
+                drivers=(
+                    [clean_name(n) for n in cfg.get("drivers", [])]
+                    if cfg.get("use_driver_folders")
+                    else None
+                ),
+                driver_style=cfg.get("use_driver_folders", False),
             )
         drivers = (
             [clean_name(n) for n in cfg.get("drivers", [])]
@@ -750,7 +819,13 @@ def run_silent(cfg, ask=False):
         )
         if drivers is not None:
             remove_unknown_driver_folders(ir_folder, dst_name, drivers)
-        sync_nascar_source_folders(ir_folder, src_name, cfg["hash_algorithm"])
+        sync_nascar_source_folders(
+            ir_folder,
+            src_name,
+            cfg["hash_algorithm"],
+            drivers=drivers,
+            driver_style=cfg.get("use_driver_folders", False),
+        )
         sync_team_folders(
             ir_folder,
             src_name,
@@ -758,6 +833,7 @@ def run_silent(cfg, ask=False):
             cfg["hash_algorithm"],
             cfg.get("copy_all", False),
             drivers,
+            driver_style=cfg.get("use_driver_folders", False),
         )
         sync_data_pack_folders(
             ir_folder,
