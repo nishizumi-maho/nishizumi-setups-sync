@@ -29,6 +29,9 @@ This repository provides Python script `nishizumi_setups_sync.py` to copy iRacin
 - Optionally create driver-specific folders in the destination. When enabled,
   setups are synced to a `Common Setups` folder and to each named driver folder
   without overwriting the drivers' custom versions.
+- When driver folders are active, imported setups and any extra sync folders are
+  automatically copied into each driver directory and the `Common Setups`
+  folder.
 - Optional Garage61 integration can fetch the list of drivers from the
   Garage61 API so driver folders are created and removed automatically.
 - When an unknown car folder is detected while running the GUI,
