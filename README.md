@@ -10,6 +10,8 @@ This repository provides Python script `nishizumi_setups_sync.py` to copy iRacin
 
 - Import setups from a ZIP or RAR archive or from another folder, or skip importing entirely.
 - Customisable team, personal, setup supplier folder and season folder names.
+- Multiple profiles let you store different sets of folder names and quickly
+  switch between them.
 - Remembers the last configuration in `user_config.json`.
 - Works with any Setup supplier: select the folder or ZIP/RAR they provide.
 - Can run silently when executed with the `--silent` argument or, when
@@ -91,18 +93,20 @@ in the console instead of a popup dialog.
 1. Run `python nishizumi_setups_sync.py` to open the interface.
 2. Select your **iRacing Setups Folder path** using the folder browser and choose
    whether to import from a ZIP/RAR file or from another folder.
-3. Fill in the team, personal, setup supplier folder and season folder names
-   with *folder names only*. These folders must exist inside your iRacing setups
-   folder and will be created automatically if they do not. The script uses
-   these folders inside every car directory. When importing from a ZIP/RAR or
-   folder, the personal folder also includes the setup supplier and season
-   subfolders so the structure matches the team folder.
-4. Optionally enable backup or logging and browse to the **Backup Folder (before)**,
+3. Pick which profile to use or adjust the number of profiles. Each profile
+   stores the team, personal, setup supplier and season folder names so you can
+   switch configurations easily.
+4. Fill in the folder names for the selected profile with *folder names only*.
+   These folders must exist inside your iRacing setups folder and will be
+   created automatically if they do not. When importing from a ZIP/RAR or folder,
+   the personal folder also includes the setup supplier and season subfolders so
+   the structure matches the team folder.
+5. Optionally enable backup or logging and browse to the **Backup Folder (before)**,
    **Backup Folder (after)** and log file locations.
-5. Click **Save Config** to store your settings without running.
-6. Press **Run** to perform the import and sync. The settings are saved for the
+6. Click **Save Config** to store your settings without running.
+7. Press **Run** to perform the import and sync. The settings are saved for the
    next time you open the tool.
-7. Click **Check for Updates** to fetch the latest version when needed.
+8. Click **Check for Updates** to fetch the latest version when needed.
 
 ### Example Configuration
 
