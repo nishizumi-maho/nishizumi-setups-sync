@@ -6,7 +6,7 @@ This repository provides a single Python script `nishizumi_setups_sync.py` to co
 ## Features
 
 - Import setups from a ZIP archive or from another folder, or skip importing entirely.
-- Customisable team, personal, setup supplier and season folder names.
+- Customisable team, personal, setup supplier folder and season folder names.
 - Remembers the last configuration in `user_config.json`.
 - Works with any Setup supplier: select the folder or ZIP they provide.
 - Can run silently when executed with the `--silent` argument or, when
@@ -74,9 +74,10 @@ running on a server), the script also falls back to silent mode.
 1. Run `python nishizumi_setups_sync.py` to open the interface.
 2. Select your **iRacing Setups Folder path** using the folder browser and choose
    whether to import from a ZIP file or from another folder.
-3. Fill in the team, personal, setup supplier and season folders with *folder
-   names only*. The script creates or uses folders with these names inside every
-   car directory.
+3. Fill in the team, personal, setup supplier folder and season folder names
+   with *folder names only*. These folders must exist inside your iRacing setups
+   folder and will be created automatically if they do not. The script uses
+   these folders inside every car directory.
 4. Optionally enable backup or logging and browse to the **Backup Folder** and
    log file locations.
 5. Click **Save Config** to store your settings without running.
@@ -91,7 +92,7 @@ iRacing Setups Folder: C:\iRacing\setups
 Backup Folder:        D:\SetupsBackup
 Team Folder Name:     MyTeam
 Personal Folder Name: DriverOne
-Season Folder:        2025S1
+Season Folder Name:   2025S1
 ```
 
 ## Interface Guide
@@ -104,7 +105,9 @@ preferences persist between launches.
 
 Only the **iRacing Setups Folder** and **Backup Folder** fields expect full
 paths. Every other folder input should contain just a folder name that will be
-created or monitored inside each car directory.
+created or monitored inside each car directory. These folders must be located
+inside your iRacing setups folder and will be created automatically if they do
+not exist.
 
 * **iRacing Setups Folder** – root folder that stores all car setup folders.
   Select the full path using the folder browser.
@@ -125,10 +128,10 @@ created or monitored inside each car directory.
   (default `Example Team`). Use only the folder name; do not include a path.
 * **Personal Folder Name (source)** – your personal folder that provides
   files (default `My Personal Folder`). Name only, no path.
-* **Setup Supplier Name (inside team folder)** – subfolder for your setup
-  supplier name (default `Example Supplier`). Invalid characters and
+* **Setup Supplier Folder Name (inside team folder)** – subfolder for your
+  setup supplier name (default `Example Supplier`). Invalid characters and
   trailing spaces are automatically removed. Name only.
-* **Season Folder (inside driver folder)** – season subfolder
+* **Season Folder Name (inside supplier folder)** – season subfolder
   (default `Example Season`). Name only.
 * **Sync Source Folder (copy from)** – name of the source folder in each car
   directory (default `Example Source`). Name only.
