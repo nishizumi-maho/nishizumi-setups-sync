@@ -79,9 +79,10 @@ running on a server), the script also falls back to silent mode.
    car directory.
 4. Optionally enable backup or logging and browse to the **Backup Folder** and
    log file locations.
-5. Press **Run** to perform the import and sync. The settings are saved for the
+5. Click **Save Config** to store your settings without running.
+6. Press **Run** to perform the import and sync. The settings are saved for the
    next time you open the tool.
-6. Click **Check for Updates** to fetch the latest version when needed.
+7. Click **Check for Updates** to fetch the latest version when needed.
 
 ### Example Configuration
 
@@ -156,12 +157,13 @@ created or monitored inside each car directory.
 * **Hash Algorithm (file comparison)** – method used to detect changes.
 * **Copy everything (not just .sto)** – when enabled, the tool copies every
   file type instead of only `.sto` files.
-* **Run silently on startup** – if enabled, the script runs silently when
-  launched without a console (for example using `pythonw`) and otherwise shows
-  the interface.
-* **Run** – saves the options and performs the copy operation.
-* **Check for Updates** – downloads the latest version of the script when
-  available.
+ * **Run silently on startup** – if enabled, the script runs silently when
+   launched without a console (for example using `pythonw`) and otherwise shows
+   the interface.
+ * **Save Config** – stores the current options without running any action.
+ * **Run** – saves the options and performs the copy operation.
+ * **Check for Updates** – downloads the latest version of the script when
+   available.
 
 ## Building a Windows EXE
 
@@ -186,15 +188,6 @@ The resulting `nishizumi_setups_sync.exe` will appear in the `dist` folder. You 
 share or run this file directly without needing Python. The program stores its
 configuration in `user_config.json` next to the executable, so ensure the folder
 containing the `.exe` allows write access.
-
-> **Warning**
-> At the moment packaging the script as an executable does not work correctly.
-> The configuration is not saved persistently when running the `.exe`, so for now
-> you should run the script with Python instead:
->
-> ```bash
-> python nishizumi_setups_sync.py
-> ```
 
 ## Future Ideas
 
