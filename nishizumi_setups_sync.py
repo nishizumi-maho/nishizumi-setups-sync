@@ -53,7 +53,8 @@ DEFAULT_CONFIG = {
     "source_folder": "",
     "team_folder": "Example Team",
     "personal_folder": "My Personal Folder",
-    "driver_folder": "Example Supplier",
+    "driver_folder": "Example Supplier",  # deprecated
+    "supplier_folder": "Example Supplier",
     "season_folder": "Example Season",
     "sync_source": "Example Source",
     "sync_destination": "Example Destination",
@@ -79,7 +80,7 @@ DEFAULT_CONFIG = {
         {
             "team_folder": "Example Team",
             "personal_folder": "My Personal Folder",
-            "driver_folder": "Example Supplier",
+            "supplier_folder": "Example Supplier",
             "season_folder": "Example Season",
         }
     ],
@@ -93,6 +94,8 @@ def load_config():
             with open(CONFIG_FILE, "r", encoding="utf-8") as f:
                 data = json.load(f)
                 if isinstance(data, dict):
+                    if "supplier_folder" not in data and "driver_folder" in data:
+                        data["supplier_folder"] = data["driver_folder"]
                     if "external_folder" in data and "extra_folders" not in data:
                         ef = data.get("external_folder")
                         data["extra_folders"] = [ef] if ef else []
@@ -117,7 +120,7 @@ def load_config():
                         profile = {
                             "team_folder": cfg.get("team_folder", DEFAULT_CONFIG["team_folder"]),
                             "personal_folder": cfg.get("personal_folder", DEFAULT_CONFIG["personal_folder"]),
-                            "driver_folder": cfg.get("driver_folder", DEFAULT_CONFIG["driver_folder"]),
+                            "supplier_folder": cfg.get("supplier_folder", DEFAULT_CONFIG["supplier_folder"]),
                             "season_folder": cfg.get("season_folder", DEFAULT_CONFIG["season_folder"]),
                         }
                         cfg["profiles"] = [profile]
@@ -129,7 +132,9 @@ def load_config():
                         prof = cfg["profiles"][idx]
                         cfg["team_folder"] = prof.get("team_folder", cfg.get("team_folder"))
                         cfg["personal_folder"] = prof.get("personal_folder", cfg.get("personal_folder"))
-                        cfg["driver_folder"] = prof.get("driver_folder", cfg.get("driver_folder"))
+                        cfg["supplier_folder"] = prof.get("supplier_folder", cfg.get("supplier_folder"))
+                        # legacy field for backward compatibility
+                        cfg["driver_folder"] = cfg["supplier_folder"]
                         cfg["season_folder"] = prof.get("season_folder", cfg.get("season_folder"))
         except Exception:
             pass
@@ -163,11 +168,13 @@ def save_config(cfg):
             {
                 "team_folder": cfg.get("team_folder", ""),
                 "personal_folder": cfg.get("personal_folder", ""),
-                "driver_folder": cfg.get("driver_folder", ""),
+                "supplier_folder": cfg.get("supplier_folder", ""),
                 "season_folder": cfg.get("season_folder", ""),
             }
         )
         cfg["profiles"] = profiles
+        # ensure legacy key is saved for backward compatibility
+        cfg["driver_folder"] = cfg.get("supplier_folder", "")
         with open(CONFIG_FILE, "w", encoding="utf-8") as f:
             json.dump(cfg, f, ensure_ascii=False, indent=4)
     except Exception:
@@ -865,7 +872,7 @@ def copy_from_source(source, iracing_folder, cfg, ask=False):
         target = os.path.join(iracing_folder, setup_name)
         personal_base = os.path.join(target, cfg["personal_folder"])
         team_base = os.path.join(target, cfg["team_folder"])
-        supplier = cfg["driver_folder"]
+        supplier = cfg.get("supplier_folder", cfg.get("driver_folder"))
         season = cfg["season_folder"]
         src_path = os.path.join(source, folder)
 
@@ -1159,7 +1166,7 @@ def main():
             self.driver_entry = self._add_entry(
                 layout,
                 "Setup Supplier Folder Name (inside team folder)",
-                self.cfg.get("driver_folder"),
+                self.cfg.get("supplier_folder"),
             )
             self.season_entry = self._add_entry(
                 layout,
@@ -1366,7 +1373,7 @@ def main():
             default = {
                 "team_folder": DEFAULT_CONFIG["team_folder"],
                 "personal_folder": DEFAULT_CONFIG["personal_folder"],
-                "driver_folder": DEFAULT_CONFIG["driver_folder"],
+                "supplier_folder": DEFAULT_CONFIG["supplier_folder"],
                 "season_folder": DEFAULT_CONFIG["season_folder"],
             }
             while len(profiles) < count:
@@ -1388,7 +1395,9 @@ def main():
                 data = {}
             self.team_entry.setText(data.get("team_folder", ""))
             self.personal_entry.setText(data.get("personal_folder", ""))
-            self.driver_entry.setText(data.get("driver_folder", ""))
+            self.driver_entry.setText(
+                data.get("supplier_folder", data.get("driver_folder", ""))
+            )
             self.season_entry.setText(data.get("season_folder", ""))
 
         def save_current_profile(self):
@@ -1397,7 +1406,7 @@ def main():
             default = {
                 "team_folder": "",
                 "personal_folder": "",
-                "driver_folder": "",
+                "supplier_folder": "",
                 "season_folder": "",
             }
             while len(profiles) <= idx:
@@ -1405,7 +1414,7 @@ def main():
             profiles[idx] = {
                 "team_folder": clean_name(self.team_entry.text()),
                 "personal_folder": clean_name(self.personal_entry.text()),
-                "driver_folder": clean_name(self.driver_entry.text()),
+                "supplier_folder": clean_name(self.driver_entry.text()),
                 "season_folder": clean_name(self.season_entry.text()),
             }
             self.cfg["profiles"] = profiles
@@ -1483,7 +1492,9 @@ def main():
                 "source_folder": self.src_entry.text().strip(),
                 "team_folder": profile.get("team_folder", ""),
                 "personal_folder": profile.get("personal_folder", ""),
-                "driver_folder": profile.get("driver_folder", ""),
+                "supplier_folder": profile.get("supplier_folder", ""),
+                # keep legacy key for backward compatibility
+                "driver_folder": profile.get("supplier_folder", ""),
                 "season_folder": profile.get("season_folder", ""),
                 "sync_source": clean_name(self.sync_source_entry.text()),
                 "sync_destination": clean_name(self.sync_dest_entry.text()),
