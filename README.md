@@ -2,10 +2,6 @@
 
 [**Download the latest release here**](https://github.com/nishizumi-maho/nishizumi-setups-sync/releases/latest)
 
-![Nishizumi Icon](icon.png)
-
-[**Download the latest release here**](https://github.com/nishizumi-maho/nishizumi-setups-sync/releases/latest)
-
 ## Setup Manager
 
 This repository provides Python script `nishizumi_setups_sync.py` to copy iRacing setup files.
