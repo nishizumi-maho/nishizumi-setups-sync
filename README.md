@@ -157,6 +157,9 @@ not exist.
 * **Number of drivers** – how many driver folders to create when manual entry is
   enabled.
 * **Driver N Name** – text fields for each driver folder name. Use names only.
+* **Select cars for driver folders individually** – when enabled, the tool asks
+  for each car whether driver folders should be created. Cars answered with "No"
+  only receive the `Common Setups` folder.
 * **Use extra sync folders** – when enabled, the additional folders listed below
   are copied as subfolders inside the source folder for every car before the
   usual sync copies the files to the team folder.

@@ -62,6 +62,8 @@ DEFAULT_CONFIG = {
     "use_garage61": False,
     "garage61_team_id": "",
     "garage61_api_key": "",
+    "choose_driver_cars": False,
+    "driver_car_overrides": {},
 }
 
 
@@ -129,6 +131,21 @@ def clean_name(name):
         return ""
     name = name.strip()
     return "".join(c for c in name if c not in INVALID_CHARS)
+
+
+def ask_yes_no(prompt):
+    """Return ``True`` if the user selects yes for ``prompt``."""
+    try:
+        from tkinter import Tk, messagebox
+
+        root = Tk()
+        root.withdraw()
+        result = messagebox.askyesno("Driver Folders", prompt)
+        root.destroy()
+        return result
+    except Exception:
+        resp = input(f"{prompt} [y/n]: ").strip().lower()
+        return resp in ("y", "yes")
 
 
 def copy_entry(src, dst):
@@ -304,6 +321,32 @@ def backup_iracing_folder(ir_folder, backup_folder, copy_all=False):
     copy_missing_files(ir_folder, backup_folder, copy_all)
 
 
+def choose_driver_cars(iracing_folder, cfg, ask=False):
+    """Ask which cars should create driver folders and store the choices."""
+    if not ask or not cfg.get("choose_driver_cars"):
+        return cfg.get("driver_car_overrides", {})
+
+    prefs = cfg.get("driver_car_overrides", {}).copy()
+    changed = False
+    for car in os.listdir(iracing_folder):
+        car_dir = os.path.join(iracing_folder, car)
+        if not os.path.isdir(car_dir):
+            continue
+        if car in prefs:
+            continue
+        if ask_yes_no(f"Create driver folders for '{car}'?"):
+            prefs[car] = True
+        else:
+            prefs[car] = False
+        changed = True
+
+    if changed:
+        cfg["driver_car_overrides"] = prefs
+        save_config(cfg)
+
+    return prefs
+
+
 COMMON_FOLDER = "Common Setups"
 DRIVERS_ROOT = "Drivers"
 
@@ -315,6 +358,7 @@ def sync_team_folders(
     algorithm="md5",
     copy_all=False,
     drivers=None,
+    car_prefs=None,
 ):
     """Copy source subfolder ``src_name`` to ``dest_name`` for each car.
 
@@ -331,18 +375,25 @@ def sync_team_folders(
         if not os.path.exists(src):
             continue
 
-        if drivers:
+        allow_drivers = (
+            drivers if not car_prefs or car_prefs.get(car, True) else None
+        )
+
+        if allow_drivers:
             common = os.path.join(dest_root, COMMON_FOLDER)
             sync_folders(src, common, algorithm, copy_all=copy_all)
-            for name in drivers:
+            for name in allow_drivers:
                 dpath = os.path.join(dest_root, DRIVERS_ROOT, name)
                 copy_missing_files(src, dpath, copy_all)
+        elif drivers is not None:
+            common = os.path.join(dest_root, COMMON_FOLDER)
+            sync_folders(src, common, algorithm, copy_all=copy_all)
         else:
             sync_folders(src, dest_root, algorithm, copy_all=copy_all)
 
 
-def remove_unknown_driver_folders(iracing_folder, dest_name, drivers):
-    """Delete driver folders not present in ``drivers``."""
+def remove_unknown_driver_folders(iracing_folder, dest_name, drivers, car_prefs=None):
+    """Delete driver folders not present in ``drivers`` or skipped cars."""
     if drivers is None:
         return
     for car in os.listdir(iracing_folder):
@@ -351,6 +402,9 @@ def remove_unknown_driver_folders(iracing_folder, dest_name, drivers):
             continue
         root = os.path.join(car_dir, dest_name, DRIVERS_ROOT)
         if not os.path.isdir(root):
+            continue
+        if car_prefs and not car_prefs.get(car, True):
+            shutil.rmtree(root, ignore_errors=True)
             continue
         for folder in os.listdir(root):
             if folder not in drivers:
@@ -391,6 +445,7 @@ def sync_data_pack_folders(
     algorithm="md5",
     copy_all=False,
     drivers=None,
+    car_prefs=None,
 ):
     """Synchronise the ``Data packs`` subfolder across all cars."""
     src_dp = os.path.join(src_team, "Data packs")
@@ -409,6 +464,7 @@ def sync_data_pack_folders(
         algorithm,
         copy_all,
         drivers,
+        car_prefs,
     )
 
 
@@ -712,8 +768,9 @@ def run_silent(cfg, ask=False):
             if cfg.get("use_driver_folders")
             else None
         )
+        car_prefs = choose_driver_cars(ir_folder, cfg, ask=ask)
         if drivers is not None:
-            remove_unknown_driver_folders(ir_folder, dst_name, drivers)
+            remove_unknown_driver_folders(ir_folder, dst_name, drivers, car_prefs)
         sync_nascar_source_folders(ir_folder, src_name, cfg["hash_algorithm"])
         sync_team_folders(
             ir_folder,
@@ -722,6 +779,7 @@ def run_silent(cfg, ask=False):
             cfg["hash_algorithm"],
             cfg.get("copy_all", False),
             drivers,
+            car_prefs,
         )
         sync_data_pack_folders(
             ir_folder,
@@ -730,6 +788,7 @@ def run_silent(cfg, ask=False):
             cfg["hash_algorithm"],
             cfg.get("copy_all", False),
             drivers,
+            car_prefs,
         )
     sync_nascar_data_packs(ir_folder, dst_name, cfg["hash_algorithm"])
 
@@ -935,6 +994,13 @@ def main():
             d_layout.addLayout(self.driver_layout)
             self.driver_count_spin.valueChanged.connect(self.update_driver_fields)
             self.update_driver_fields()
+            self.choose_car_check = QtWidgets.QCheckBox(
+                "Select cars for driver folders individually"
+            )
+            self.choose_car_check.setChecked(
+                self.cfg.get("choose_driver_cars", False)
+            )
+            d_layout.addWidget(self.choose_car_check)
             layout.addWidget(drivers_group)
 
             self.garage_check.toggled.connect(self.update_garage_fields)
@@ -1070,6 +1136,8 @@ def main():
                 "use_garage61": self.garage_check.isChecked(),
                 "garage61_team_id": self.team_id_entry.text().strip(),
                 "garage61_api_key": self.api_key_entry.text().strip(),
+                "choose_driver_cars": self.choose_car_check.isChecked(),
+                "driver_car_overrides": self.cfg.get("driver_car_overrides", {}),
             }
 
         def save_and_run(self):
