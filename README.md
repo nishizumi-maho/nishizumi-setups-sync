@@ -53,6 +53,8 @@ This repository provides Python script `nishizumi_setups_sync.py` to copy iRacin
 - Optional logging: when enabled, actions are appended to a log file for later
   review.
 - Built-in update function to download the latest script version.
+- Optional tray mode to keep the program running and rescan at a configurable
+  interval.
 
 ## Installation
 
@@ -81,6 +83,7 @@ python nishizumi_setups_sync.py     # open the graphical interface
 python nishizumi_setups_sync.py --silent  # run with saved options without showing UI
 python nishizumi_setups_sync.py --gui     # force the graphical interface even if "Run silently on startup" is set
 python nishizumi_setups_sync.py --update  # download the latest version
+python nishizumi_setups_sync.py --tray    # run in the system tray and rescan periodically
 ```
 
 If the configured iRacing folder, ZIP/RAR file or source folder is missing when
@@ -196,6 +199,8 @@ not exist.
  * **Run silently on startup** – if enabled, the script runs silently when
    launched without a console (for example using `pythonw`) and otherwise shows
    the interface.
+ * **Stay in tray and rescan every N hours** – keep the program running in the
+   background and perform automatic syncs at the chosen interval.
  * **Save Config** – stores the current options without running any action.
  * **Run** – saves the options and performs the copy operation.
  * **Check for Updates** – downloads the latest version of the script when
@@ -249,8 +254,5 @@ containing the `.exe` allows write access.
 
 ## Future Ideas
 
-Some potential improvements for later versions:
-
-- Schedule synchronisation at specific times rather than only on startup.
 - Display a progress bar for long operations.
 - Send a notification when the sync completes or if an error occurs.
