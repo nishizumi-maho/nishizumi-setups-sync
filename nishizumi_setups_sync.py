@@ -59,7 +59,8 @@ DEFAULT_CONFIG = {
     # older configs may store just a list of folder names
     "extra_folders": [],
     "backup_enabled": False,
-    "backup_folder": "",
+    "backup_before_folder": "",
+    "backup_after_folder": "",
     "enable_logging": False,
     "log_file": "nishizumi_setups_sync.log",
     "copy_all": False,
@@ -94,6 +95,9 @@ def load_config():
                                 if name:
                                     new_ext.append({"name": name, "location": loc})
                         data["extra_folders"] = new_ext
+                    if "backup_folder" in data:
+                        data.setdefault("backup_before_folder", data.get("backup_folder"))
+                        data.setdefault("backup_after_folder", "")
                     cfg.update(data)
         except Exception:
             pass
@@ -103,6 +107,9 @@ def load_config():
 def save_config(cfg):
     try:
         cfg.pop("external_folder", None)
+        cfg.pop("backup_folder", None)
+        cfg.setdefault("backup_before_folder", "")
+        cfg.setdefault("backup_after_folder", "")
         # ensure extra_folders are stored as list of dicts
         ext = cfg.get("extra_folders", [])
         if isinstance(ext, list):
@@ -934,10 +941,10 @@ def run_silent(cfg, ask=False):
         return
 
     # Backup the entire iRacing folder before making any changes
-    if cfg.get("backup_enabled") and cfg.get("backup_folder"):
+    if cfg.get("backup_enabled") and cfg.get("backup_before_folder"):
         backup_iracing_folder(
             ir_folder,
-            cfg["backup_folder"],
+            cfg["backup_before_folder"],
             cfg.get("copy_all", False),
         )
 
@@ -955,6 +962,14 @@ def run_silent(cfg, ask=False):
         log("No import selected", cfg)
 
     perform_sync(ir_folder, cfg)
+
+    # Backup again after sync completes
+    if cfg.get("backup_enabled") and cfg.get("backup_after_folder"):
+        backup_iracing_folder(
+            ir_folder,
+            cfg["backup_after_folder"],
+            cfg.get("copy_all", False),
+        )
 
 
 def main():
@@ -1082,16 +1097,24 @@ def main():
             self.backup_check = QtWidgets.QCheckBox("Enable backup")
             self.backup_check.setChecked(self.cfg.get("backup_enabled", False))
             layout.addWidget(self.backup_check)
-            self.backup_entry = self._add_browse(
+            self.backup_before_entry = self._add_browse(
                 layout,
-                "Backup Folder",
+                "Backup Folder (before)",
                 False,
-                self.browse_backup,
-                self.cfg.get("backup_folder", ""),
+                self.browse_backup_before,
+                self.cfg.get("backup_before_folder", self.cfg.get("backup_folder", "")),
             )
-            self.backup_entry.parent().setVisible(self.backup_check.isChecked())
+            self.backup_after_entry = self._add_browse(
+                layout,
+                "Backup Folder (after)",
+                False,
+                self.browse_backup_after,
+                self.cfg.get("backup_after_folder", ""),
+            )
+            for w in (self.backup_before_entry, self.backup_after_entry):
+                w.parent().setVisible(self.backup_check.isChecked())
             self.backup_check.toggled.connect(
-                lambda v: self.backup_entry.parent().setVisible(v)
+                lambda v: [w.parent().setVisible(v) for w in (self.backup_before_entry, self.backup_after_entry)]
             )
 
             self.log_check = QtWidgets.QCheckBox("Enable logging")
@@ -1222,12 +1245,19 @@ def main():
             if path:
                 self.iracing_entry.setText(path)
 
-        def browse_backup(self):
+        def browse_backup_before(self):
             path = QtWidgets.QFileDialog.getExistingDirectory(
-                self, "Select Backup Folder"
+                self, "Select Backup Folder (before)"
             )
             if path:
-                self.backup_entry.setText(path)
+                self.backup_before_entry.setText(path)
+
+        def browse_backup_after(self):
+            path = QtWidgets.QFileDialog.getExistingDirectory(
+                self, "Select Backup Folder (after)"
+            )
+            if path:
+                self.backup_after_entry.setText(path)
 
         def update_extra_fields(self):
             count = self.extra_count_spin.value()
@@ -1329,7 +1359,8 @@ def main():
                 "sync_source": clean_name(self.sync_source_entry.text()),
                 "sync_destination": clean_name(self.sync_dest_entry.text()),
                 "backup_enabled": self.backup_check.isChecked(),
-                "backup_folder": self.backup_entry.text().strip(),
+                "backup_before_folder": self.backup_before_entry.text().strip(),
+                "backup_after_folder": self.backup_after_entry.text().strip(),
                 "enable_logging": self.log_check.isChecked(),
                 "log_file": self.log_entry.text().strip(),
                 "hash_algorithm": self.algo_combo.currentText(),

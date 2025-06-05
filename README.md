@@ -42,9 +42,9 @@ This repository provides Python script `nishizumi_setups_sync.py` to copy iRacin
   Garage61 API so driver folders are created and removed automatically.
 - When an unknown car folder is detected while running the GUI,
   the script asks which iRacing folder to use and remembers the choice.
-- Optional backup: before any changes are made, new files are copied from the
-  iRacing setups folder to a chosen backup folder. Changes made during the run
-  are **not** copied back to the backup. Existing backups are preserved.
+- Optional backup: the iRacing setups folder can be copied to a selected folder
+  before syncing and again to another folder afterwards. If the same locations
+  are reused on later runs the previous contents are overwritten.
 - Optional logging: when enabled, actions are appended to a log file for later
   review.
 - Built-in update function to download the latest script version.
@@ -62,9 +62,10 @@ pip install -r requirements.txt
 Run the script and choose the iRacing setups folder. Depending on the selected
 import mode you may also pick a ZIP file or a source folder. Configure folder
 names as needed and press **Run**. The selected options are saved for next
-time. If backup is enabled, the iRacing folder is copied to the backup before
-any syncing occurs, so the backup never includes modifications from the
-current run.
+time. If backup is enabled, the iRacing folder is copied to the first backup
+location before any syncing occurs and again to the second location after
+synchronisation. Reusing the same folders will overwrite the previous backup
+each time.
 
 To automate the process on start-up, enable `Run silently on startup`. Place a
 shortcut that launches the script without a console (for example using
@@ -96,8 +97,8 @@ in the console instead of a popup dialog.
    these folders inside every car directory. When importing from a ZIP or
    folder, the personal folder also includes the setup supplier and season
    subfolders so the structure matches the team folder.
-4. Optionally enable backup or logging and browse to the **Backup Folder** and
-   log file locations.
+4. Optionally enable backup or logging and browse to the **Backup Folder (before)**,
+   **Backup Folder (after)** and log file locations.
 5. Click **Save Config** to store your settings without running.
 6. Press **Run** to perform the import and sync. The settings are saved for the
    next time you open the tool.
@@ -106,11 +107,12 @@ in the console instead of a popup dialog.
 ### Example Configuration
 
 ```
-iRacing Setups Folder: C:\iRacing\setups
-Backup Folder:        D:\SetupsBackup
-Team Folder Name:     MyTeam
-Personal Folder Name: DriverOne
-Season Folder Name:   2025S1
+iRacing Setups Folder:   C:\iRacing\setups
+Backup Folder (before):  D:\SetupsBackupBefore
+Backup Folder (after):   D:\SetupsBackupAfter
+Team Folder Name:        MyTeam
+Personal Folder Name:    DriverOne
+Season Folder Name:      2025S1
 ```
 
 ## Interface Guide
@@ -121,7 +123,7 @@ options. Each setting is saved in `user_config.json` for the next run. When
 packaged as an executable, this file sits alongside the `.exe` so your
 preferences persist between launches.
 
-Only the **iRacing Setups Folder** and **Backup Folder** fields expect full
+Only the **iRacing Setups Folder** and the backup folder fields expect full
 paths. Every other folder input should contain just a folder name that will be
 created or monitored inside each car directory. These folders must be located
 inside your iRacing setups folder and will be created automatically if they do
@@ -129,11 +131,10 @@ not exist.
 
 * **iRacing Setups Folder** – root folder that stores all car setup folders.
   Select the full path using the folder browser.
-* **Enable backup** – when checked, a copy of new files is stored in the
-  specified backup folder before syncing begins. Files created or modified
-  during the run are not saved to the backup.
-* **Backup Folder** – directory where the pre-run backups are stored. Provide
-  the full path here.
+* **Enable backup** – when checked, two backups of the iRacing folder are taken:
+  one before syncing starts and one after it finishes.
+* **Backup Folder (before)** – directory for the pre-run backup.
+* **Backup Folder (after)** – directory for the post-run backup.
 * **Enable logging** – write operations to a log file during execution.
 * **Log File** – path of the file used when logging is enabled.
 * **Import Mode** – choose **Zip Import** to unpack a ZIP file,
