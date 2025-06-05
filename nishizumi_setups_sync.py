@@ -904,7 +904,11 @@ def main():
             self.driver_check.toggled.connect(self.update_garage_fields)
             d_layout.addWidget(QtWidgets.QLabel("Number of drivers"))
             self.driver_count_spin = QtWidgets.QSpinBox()
-            self.driver_count_spin.setRange(0, 10)
+            # Allow a very large number of drivers to be configured
+            # Previously the limit was 10 which was restrictive for
+            # bigger teams. Increase upper bound to accommodate up to
+            # one thousand driver entries.
+            self.driver_count_spin.setRange(0, 1000)
             self.driver_count_spin.setValue(len(self.cfg.get("drivers", [])))
             d_layout.addWidget(self.driver_count_spin)
             self.driver_entries = []
