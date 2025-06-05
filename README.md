@@ -258,8 +258,3 @@ The resulting `nishizumi_setups_sync.exe` will appear in the `dist` folder. You 
 share or run this file directly without needing Python. The program stores its
 configuration in `user_config.json` next to the executable, so ensure the folder
 containing the `.exe` allows write access.
-
-## Future Ideas
-
-- Display a progress bar for long operations.
-- Send a notification when the sync completes or if an error occurs.
