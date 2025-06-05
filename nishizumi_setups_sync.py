@@ -28,7 +28,7 @@ VERSION = "1.0.0"
 # Location of the latest script version for the self-update feature
 UPDATE_URL = (
     "https://raw.githubusercontent.com/MahoNishizumi/"
-    "nishizumi-setups-sync/main/setup_manager.py"
+    "nishizumi-setups-sync/main/nishizumi_setups_sync.py"
 )
 
 # ---------------------- Config Handling ----------------------
@@ -50,7 +50,7 @@ DEFAULT_CONFIG = {
     "backup_enabled": False,
     "backup_folder": "",
     "enable_logging": False,
-    "log_file": "setup_manager.log",
+    "log_file": "nishizumi_setups_sync.log",
     "copy_all": False,
     "use_driver_folders": False,
     "drivers": [],
@@ -106,7 +106,7 @@ def log(msg, cfg=None):
     """Print and optionally write a message to a log file."""
     print(msg)
     if cfg and cfg.get("enable_logging"):
-        log_path = cfg.get("log_file") or "setup_manager.log"
+        log_path = cfg.get("log_file") or "nishizumi_setups_sync.log"
         try:
             with open(log_path, "a", encoding="utf-8") as f:
                 timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -803,7 +803,7 @@ def main():
         run_silent(cfg, ask=False)
         return
 
-    root.title("Setup Manager")
+    root.title("Nishizumi Setups Sync")
     root.geometry("600x700")
     root.resizable(False, False)
 

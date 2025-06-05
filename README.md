@@ -1,7 +1,7 @@
-# nishizumi-setups-sync
+# Nishizumi Setups Sync
 
-# Setup Manager
-This repository provides a single Python script `setup_manager.py` to copy iRacing setup files.
+## Setup Manager
+This repository provides a single Python script `nishizumi_setups_sync.py` to copy iRacing setup files.
 
 ## Features
 
@@ -56,10 +56,10 @@ place a shortcut to execute the script (with Python) in your operating system's
 start-up folder.
 
 ```bash
-python setup_manager.py     # open the graphical interface
-python setup_manager.py --silent  # run with saved options without showing UI
-python setup_manager.py --gui     # force the graphical interface even if "Run silently on startup" is set
-python setup_manager.py --update  # download the latest version
+python nishizumi_setups_sync.py     # open the graphical interface
+python nishizumi_setups_sync.py --silent  # run with saved options without showing UI
+python nishizumi_setups_sync.py --gui     # force the graphical interface even if "Run silently on startup" is set
+python nishizumi_setups_sync.py --update  # download the latest version
 ```
 
 If the configured iRacing folder, zip file or source folder is missing when
@@ -70,7 +70,7 @@ running on a server), the script also falls back to silent mode.
 
 ## How to Use
 
-1. Run `python setup_manager.py` to open the interface.
+1. Run `python nishizumi_setups_sync.py` to open the interface.
 2. Select your **iRacing Setups Folder** and choose whether to import from a
    ZIP file or from another folder.
 3. Fill in the team, personal, setup supplier and season folders as desired.
@@ -158,10 +158,10 @@ performed on a Windows machine:
 3. In the repository folder, run PyInstaller to build a single-file executable:
 
    ```bash
-   pyinstaller --onefile setup_manager.py
+   pyinstaller --onefile nishizumi_setups_sync.py
    ```
 
-The resulting `setup_manager.exe` will appear in the `dist` folder. You can
+The resulting `nishizumi_setups_sync.exe` will appear in the `dist` folder. You can
 share or run this file directly without needing Python.
 
 ## Future Ideas
