@@ -25,7 +25,8 @@ This repository provides Python script `nishizumi_setups_sync.py` to copy iRacin
     tools) are copied as subfolders inside the source folder before the normal
     synchronisation copies everything to the team folder. Each extra folder can
     be taken either from the car directory or from inside the sync destination
-    folder.
+    folder. When gathered from the destination folder the original is removed
+    after copying to keep things tidy.
 - By default only `.sto` files are copied; a checkbox allows copying every file
   type instead.
 - Optionally create driver-specific folders in the destination. When enabled,
