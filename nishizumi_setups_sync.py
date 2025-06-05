@@ -68,6 +68,8 @@ DEFAULT_CONFIG = {
     "use_garage61": False,
     "garage61_team_id": "",
     "garage61_api_key": "",
+    "profiles": [],
+    "current_profile": 1,
 }
 
 
@@ -97,6 +99,39 @@ def load_config():
                     cfg.update(data)
         except Exception:
             pass
+
+    if "profiles" not in cfg or not isinstance(cfg.get("profiles"), list):
+        prof = {
+            k: cfg.get(k)
+            for k in [
+                "source_type",
+                "zip_file",
+                "source_folder",
+                "team_folder",
+                "personal_folder",
+                "driver_folder",
+                "season_folder",
+            ]
+        }
+        cfg["profiles"] = [prof]
+        cfg["current_profile"] = 1
+
+    idx = cfg.get("current_profile", 1) - 1
+    if idx < 0 or idx >= len(cfg["profiles"]):
+        idx = 0
+        cfg["current_profile"] = 1
+    prof = cfg["profiles"][idx]
+    for key in [
+        "source_type",
+        "zip_file",
+        "source_folder",
+        "team_folder",
+        "personal_folder",
+        "driver_folder",
+        "season_folder",
+    ]:
+        if key in prof:
+            cfg[key] = prof.get(key, cfg.get(key))
     return cfg
 
 
@@ -116,6 +151,23 @@ def save_config(cfg):
                     if name:
                         norm.append({"name": name, "location": loc})
             cfg["extra_folders"] = norm
+
+        profs = cfg.get("profiles")
+        if isinstance(profs, list):
+            new_profs = []
+            for p in profs:
+                if isinstance(p, dict):
+                    new = {k: p.get(k, "") for k in [
+                        "source_type",
+                        "zip_file",
+                        "source_folder",
+                        "team_folder",
+                        "personal_folder",
+                        "driver_folder",
+                        "season_folder",
+                    ]}
+                    new_profs.append(new)
+            cfg["profiles"] = new_profs
         with open(CONFIG_FILE, "w", encoding="utf-8") as f:
             json.dump(cfg, f, ensure_ascii=False, indent=4)
     except Exception:
@@ -1028,6 +1080,15 @@ def main():
                 )
             )
 
+            prof_row = QtWidgets.QHBoxLayout()
+            prof_row.addWidget(QtWidgets.QLabel("Import Profile"))
+            self.profile_spin = QtWidgets.QSpinBox()
+            self.profile_spin.setRange(1, 100)
+            self.profile_spin.setValue(self.cfg.get("current_profile", 1))
+            self.profile_spin.valueChanged.connect(self.load_profile)
+            prof_row.addWidget(self.profile_spin)
+            layout.addLayout(prof_row)
+
             self.iracing_entry = self._add_browse(
                 layout,
                 "iRacing Setups Folder (destination root)",
@@ -1229,6 +1290,22 @@ def main():
             if path:
                 self.backup_entry.setText(path)
 
+        def load_profile(self):
+            idx = self.profile_spin.value() - 1
+            profiles = self.cfg.get("profiles", [])
+            while len(profiles) <= idx:
+                profiles.append({})
+            self.cfg["profiles"] = profiles
+            prof = profiles[idx]
+            self.mode_combo.setCurrentText(prof.get("source_type", self.cfg.get("source_type", "zip")))
+            self.zip_entry.setText(prof.get("zip_file", ""))
+            self.src_entry.setText(prof.get("source_folder", ""))
+            self.team_entry.setText(prof.get("team_folder", self.cfg.get("team_folder", "")))
+            self.personal_entry.setText(prof.get("personal_folder", self.cfg.get("personal_folder", "")))
+            self.driver_entry.setText(prof.get("driver_folder", self.cfg.get("driver_folder", "")))
+            self.season_entry.setText(prof.get("season_folder", self.cfg.get("season_folder", "")))
+            self.update_mode_fields()
+
         def update_extra_fields(self):
             count = self.extra_count_spin.value()
             while len(self.extra_entries) < count:
@@ -1317,7 +1394,7 @@ def main():
                     self.copy_all_check.setChecked(False)
 
         def collect_config(self):
-            return {
+            cfg = {
                 "iracing_folder": self.iracing_entry.text().strip(),
                 "source_type": self.mode_combo.currentText(),
                 "zip_file": self.zip_entry.text().strip(),
@@ -1355,15 +1432,35 @@ def main():
                 "garage61_api_key": self.api_key_entry.text().strip(),
             }
 
+            idx = self.profile_spin.value() - 1
+            cfg["current_profile"] = idx + 1
+            profiles = self.cfg.get("profiles", [])
+            while len(profiles) <= idx:
+                profiles.append({})
+            prof = {
+                "source_type": cfg["source_type"],
+                "zip_file": cfg["zip_file"],
+                "source_folder": cfg["source_folder"],
+                "team_folder": cfg["team_folder"],
+                "personal_folder": cfg["personal_folder"],
+                "driver_folder": cfg["driver_folder"],
+                "season_folder": cfg["season_folder"],
+            }
+            profiles[idx] = prof
+            cfg["profiles"] = profiles
+            return cfg
+
         def save_and_run(self):
             cfg = self.collect_config()
             save_config(cfg)
+            self.cfg = cfg
             run_silent(cfg, ask=True)
             QtWidgets.QMessageBox.information(self, "Done", "Processing completed")
 
         def save_only(self):
             cfg = self.collect_config()
             save_config(cfg)
+            self.cfg = cfg
             QtWidgets.QMessageBox.information(self, "Saved", "Configuration saved")
 
     app = QtWidgets.QApplication(sys.argv)

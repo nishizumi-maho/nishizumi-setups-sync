@@ -11,6 +11,7 @@ This repository provides Python script `nishizumi_setups_sync.py` to copy iRacin
 - Import setups from a ZIP archive or from another folder, or skip importing entirely.
 - Customisable team, personal, setup supplier folder and season folder names.
 - Remembers the last configuration in `user_config.json`.
+- Multiple import profiles to quickly switch between different settings.
 - Works with any Setup supplier: select the folder or ZIP they provide.
 - Can run silently when executed with the `--silent` argument or, when
   `Run silently on startup` is enabled, if the script is launched without a
@@ -136,6 +137,8 @@ not exist.
   the full path here.
 * **Enable logging** – write operations to a log file during execution.
 * **Log File** – path of the file used when logging is enabled.
+* **Import Profile** – select which profile to edit or run. Each profile stores
+  the import mode and folder names.
 * **Import Mode** – choose **Zip Import** to unpack a ZIP file,
   **Folder Import** to copy from an existing folder, or **No Import** to skip
   importing and only synchronise existing files. When **No Import** is
