@@ -1,6 +1,6 @@
-# setups
-# Setup Manager
+# nishizumi-setups-sync
 
+# Setup Manager
 This repository provides a single Python script `setup_manager.py` to copy iRacing setup files.
 
 ## Features
