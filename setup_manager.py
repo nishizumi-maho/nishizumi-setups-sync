@@ -11,7 +11,11 @@ import zipfile
 import shutil
 import hashlib
 import json
-import requests
+try:
+    import requests
+except ModuleNotFoundError:  # pragma: no cover - handle missing dependency
+    print("The 'requests' package is required. Install it with 'pip install requests'.")
+    sys.exit(1)
 import re
 from datetime import datetime
 import tkinter as tk
@@ -23,8 +27,8 @@ MAP_FILE = "custom_car_mapping.json"
 VERSION = "1.0.0"
 # Location of the latest script version for the self-update feature
 UPDATE_URL = (
-    "https://raw.githubusercontent.com/yourusername/"
-    "iRacing-Setups-Sync/main/setup_manager.py"
+    "https://raw.githubusercontent.com/MahoNishizumi/"
+    "nishizumi-setups-sync/main/setup_manager.py"
 )
 
 # ---------------------- Config Handling ----------------------
@@ -35,7 +39,7 @@ DEFAULT_CONFIG = {
     "source_folder": "",
     "team_folder": "Example Team",
     "personal_folder": "My Personal Folder",
-    "driver_folder": "Example Driver",
+    "driver_folder": "Example Supplier",
     "season_folder": "Example Season",
     "sync_source": "Example Source",
     "sync_destination": "Example Destination",
@@ -868,7 +872,7 @@ def main():
     driver_frame = ttk.Frame(scrollable)
     ttk.Label(
         driver_frame,
-        text="Driver Folder Name (inside team folder)",
+        text="Setup Supplier Name (inside team folder)",
     ).pack()
     driver_entry = ttk.Entry(driver_frame, width=40)
     driver_entry.insert(0, cfg.get("driver_folder", ""))
@@ -907,12 +911,13 @@ def main():
     ttk.Button(backup_frame, text="Browse", command=browse_backup).pack()
 
     log_var = tk.IntVar(value=1 if cfg.get("enable_logging", False) else 0)
-    ttk.Checkbutton(
+    log_var_chk = ttk.Checkbutton(
         scrollable,
         text="Enable logging",
         variable=log_var,
         command=lambda: toggle_log_fields(),
-    ).pack()
+    )
+    log_var_chk.pack()
 
     log_frame = ttk.Frame(scrollable)
     ttk.Label(log_frame, text="Log File").pack()
@@ -1089,13 +1094,13 @@ def main():
 
     def toggle_backup_fields():
         if backup_var.get():
-            backup_frame.pack()
+            backup_frame.pack(after=backup_var_chk)
         else:
             backup_frame.pack_forget()
 
     def toggle_log_fields():
         if log_var.get():
-            log_frame.pack()
+            log_frame.pack(after=log_var_chk)
         else:
             log_frame.pack_forget()
 
