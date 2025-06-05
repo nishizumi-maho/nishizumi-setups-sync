@@ -6,7 +6,7 @@ This repository provides a single Python script `setup_manager.py` to copy iRaci
 ## Features
 
 - Import setups from a ZIP archive or from another folder, or skip importing entirely.
-- Customisable team, personal and season folder names.
+- Customisable team, personal, setup supplier and season folder names.
 - Remembers the last configuration in `user_config.json`.
 - Works with any Setup supplier: select the folder or ZIP they provide.
 - Can run silently when executed with the `--silent` argument or when
@@ -65,7 +65,7 @@ running on a server), the script also falls back to silent mode.
 1. Run `python setup_manager.py` to open the interface.
 2. Select your **iRacing Setups Folder** and choose whether to import from a
    ZIP file or from another folder.
-3. Fill in the team, personal, driver and season folders as desired.
+3. Fill in the team, personal, setup supplier and season folders as desired.
 4. Optionally enable backup or logging and choose where these files will be
    stored.
 5. Press **Run** to perform the import and sync. The settings are saved for the
@@ -95,8 +95,8 @@ options. Each setting is saved in `user_config.json` for the next run.
   (default `Example Team`).
 * **Personal Folder Name (source)** – your personal folder that provides
   files (default `My Personal Folder`).
-* **Driver Folder Name (inside team folder)** – subfolder for your driver
-  name (default `Example Driver`).
+* **Setup Supplier Name (inside team folder)** – subfolder for your setup
+  supplier name (default `Example Supplier`).
 * **Season Folder (inside driver folder)** – season subfolder
   (default `Example Season`).
 * **Sync Source Folder (copy from)** – name of the source folder in each car
