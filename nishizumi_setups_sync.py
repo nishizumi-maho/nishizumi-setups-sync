@@ -885,6 +885,7 @@ def main():
             self.driver_check = QtWidgets.QCheckBox("Manually write drivers names")
             self.driver_check.setChecked(self.cfg.get("use_driver_folders", False))
             d_layout.addWidget(self.driver_check)
+            self.driver_check.toggled.connect(self.update_garage_fields)
             d_layout.addWidget(QtWidgets.QLabel("Number of drivers"))
             self.driver_count_spin = QtWidgets.QSpinBox()
             self.driver_count_spin.setRange(0, 10)
