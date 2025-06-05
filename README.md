@@ -82,7 +82,9 @@ running on a server), the script also falls back to silent mode.
 3. Fill in the team, personal, setup supplier folder and season folder names
    with *folder names only*. These folders must exist inside your iRacing setups
    folder and will be created automatically if they do not. The script uses
-   these folders inside every car directory.
+   these folders inside every car directory. When importing from a ZIP or
+   folder, the personal folder also includes the setup supplier and season
+   subfolders so the structure matches the team folder.
 4. Optionally enable backup or logging and browse to the **Backup Folder** and
    log file locations.
 5. Click **Save Config** to store your settings without running.
@@ -133,7 +135,9 @@ not exist.
 * **Team Folder Name (destination)** – team directory to place files in
   (default `Example Team`). Use only the folder name; do not include a path.
 * **Personal Folder Name (source)** – your personal folder that provides
-  files (default `My Personal Folder`). Name only, no path.
+  files (default `My Personal Folder`). Name only, no path. When importing
+  from a ZIP or folder this folder also contains the setup supplier and
+  season subfolders, mirroring the team folder layout.
 * **Setup Supplier Folder Name (inside team folder)** – subfolder for your
   setup supplier name (default `Example Supplier`). Invalid characters and
   trailing spaces are automatically removed. Name only.

@@ -600,7 +600,12 @@ def copy_from_source(source, iracing_folder, cfg, ask=False):
         if not setup_name:
             continue
         target = os.path.join(iracing_folder, setup_name)
-        personal = os.path.join(target, cfg["personal_folder"])
+        personal = os.path.join(
+            target,
+            cfg["personal_folder"],
+            cfg["driver_folder"],
+            cfg["season_folder"],
+        )
         team = os.path.join(
             target,
             cfg["team_folder"],
