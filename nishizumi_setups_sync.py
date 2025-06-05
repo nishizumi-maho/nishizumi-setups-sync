@@ -646,7 +646,12 @@ def sync_nascar_source_folders(
     iracing_folder, src_name, algorithm="md5", drivers=None, driver_style=False
 ):
     """Synchronise the source folder across all cars in each NASCAR group."""
-    for group in ["nascar nextgen", "nascar xfinity", "nascar trucks"]:
+    for group in [
+        "nascar nextgen",
+        "nascar xfinity",
+        "nascar trucks",
+        "superformula sf23",
+    ]:
         cars = CAR_GROUPS.get(group, [])
         paths = []
         for car in cars:
@@ -669,6 +674,7 @@ def sync_nascar_data_packs(iracing_folder, dest_name, algorithm="md5"):
         CAR_GROUPS.get("nascar nextgen", []),
         CAR_GROUPS.get("nascar xfinity", []),
         CAR_GROUPS.get("nascar trucks", []),
+        CAR_GROUPS.get("superformula sf23", []),
     ]
 
     for cars in groups:
@@ -761,6 +767,10 @@ CAR_MAP = {
         "nascar nextgen -> stockcars fordmustang2022",
         "nascar nextgen -> stockcars toyotacamry2022",
     ],
+    "superformula sf23": [
+        "superformula sf23 -> superformulasf23 honda",
+        "superformula sf23 -> superformulasf23 toyota",
+    ],
 }
 
 # Grouped folders used for cross-car sync
@@ -779,6 +789,10 @@ CAR_GROUPS = {
         "stockcars chevycamarozl12022",
         "stockcars fordmustang2022",
         "stockcars toyotacamry2022",
+    ],
+    "superformula sf23": [
+        "superformulasf23 honda",
+        "superformulasf23 toyota",
     ],
 }
 
