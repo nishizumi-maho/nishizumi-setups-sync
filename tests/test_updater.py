@@ -316,3 +316,95 @@ def test_swap_script_is_generated_for_the_platform(tmp_path, monkeypatch):
     body = script.read_text()
     assert script.suffix == ".sh"
     assert "kill -0 4242" in body and str(new_file) in body
+
+
+# ---------------------------------------------------------------------------
+# Installing over a source checkout
+# ---------------------------------------------------------------------------
+
+def _fake_zipball(path, tag="v2.1.0", package_files=None, extra=()):
+    """Build an archive shaped like GitHub's source zipball."""
+    import zipfile
+
+    root = f"nishizumi-maho-Nishizumi-Sync-{tag}"
+    files = package_files or {"__init__.py": '__version__ = "2.1.0"\n', "sync.py": "# new\n"}
+    with zipfile.ZipFile(path, "w") as bundle:
+        for name, content in files.items():
+            bundle.writestr(f"{root}/nishizumi_sync/{name}", content)
+        for name, content in extra:
+            bundle.writestr(f"{root}/{name}", content)
+    return path
+
+
+def test_source_install_replaces_the_package(monkeypatch, tmp_path, logger):
+    install = tmp_path / "app"
+    (install / "nishizumi_sync").mkdir(parents=True)
+    (install / "nishizumi_sync" / "__init__.py").write_text('__version__ = "2.0.0"\n', encoding="utf-8")
+    (install / "nishizumi_sync" / "stale.py").write_text("# removed upstream\n", encoding="utf-8")
+    (install / "nishizumi_setups_sync.py").write_text("# old launcher\n", encoding="utf-8")
+
+    archive = _fake_zipball(tmp_path / "src.zip", extra=[("nishizumi_setups_sync.py", "# new launcher\n")])
+    monkeypatch.setattr(updater, "install_dir", lambda: install)
+
+    up = updater.Updater({}, logger, state_path=tmp_path / "s.json")
+    info = updater.UpdateInfo.from_api(release("v2.1.0"))
+    result = up._install_source(archive, info)
+
+    assert result.ok is True and result.restart_required is True
+    assert '__version__ = "2.1.0"' in (install / "nishizumi_sync" / "__init__.py").read_text()
+    assert (install / "nishizumi_setups_sync.py").read_text() == "# new launcher\n"
+    # Files dropped upstream do not linger, and no backup is left behind.
+    assert not (install / "nishizumi_sync" / "stale.py").exists()
+    assert not (install / "nishizumi_sync.backup").exists()
+
+
+def test_source_install_rejects_an_archive_without_the_package(monkeypatch, tmp_path, logger):
+    import zipfile
+
+    install = tmp_path / "app"
+    (install / "nishizumi_sync").mkdir(parents=True)
+    (install / "nishizumi_sync" / "__init__.py").write_text("keep me", encoding="utf-8")
+
+    archive = tmp_path / "wrong.zip"
+    with zipfile.ZipFile(archive, "w") as bundle:
+        bundle.writestr("something-else/readme.md", "not the app")
+    monkeypatch.setattr(updater, "install_dir", lambda: install)
+
+    up = updater.Updater({}, logger, state_path=tmp_path / "s.json")
+    with pytest.raises(updater.UpdateError):
+        up._install_source(archive, updater.UpdateInfo.from_api(release("v2.1.0")))
+    # The existing installation is untouched.
+    assert (install / "nishizumi_sync" / "__init__.py").read_text() == "keep me"
+
+
+def test_source_install_refuses_a_zip_slip_archive(monkeypatch, tmp_path, logger):
+    import zipfile
+
+    install = tmp_path / "app"
+    install.mkdir()
+    archive = tmp_path / "evil.zip"
+    with zipfile.ZipFile(archive, "w") as bundle:
+        bundle.writestr("../escaped.py", "pwned")
+    monkeypatch.setattr(updater, "install_dir", lambda: install)
+
+    up = updater.Updater({}, logger, state_path=tmp_path / "s.json")
+    with pytest.raises(updater.UpdateError, match="escapes"):
+        up._install_source(archive, updater.UpdateInfo.from_api(release("v2.1.0")))
+    assert not (tmp_path / "escaped.py").exists()
+
+
+def test_install_records_the_pending_version(monkeypatch, tmp_path, logger):
+    install = tmp_path / "app"
+    (install / "nishizumi_sync").mkdir(parents=True)
+    archive = _fake_zipball(tmp_path / "src.zip")
+
+    monkeypatch.setattr(updater, "install_dir", lambda: install)
+    monkeypatch.setattr(updater, "detect_install_mode", lambda: updater.MODE_SOURCE)
+    monkeypatch.setattr(updater, "download", lambda url, dest, **k: (dest.write_bytes(archive.read_bytes()), dest)[1])
+
+    state_path = tmp_path / "s.json"
+    up = updater.Updater({}, logger, state_path=state_path)
+    result = up.install(updater.UpdateInfo.from_api(release("v2.1.0")))
+
+    assert result.ok is True, result.message
+    assert updater.UpdateState.load(state_path).pending_version == "v2.1.0"
