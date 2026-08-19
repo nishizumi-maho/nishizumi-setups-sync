@@ -29,6 +29,7 @@ class SyncWorker(QtCore.QThread):
         self.dry_run = dry_run
 
     def run(self) -> None:  # pragma: no cover - requires Qt
+        from ..importer import ImportError_
         from ..sync import SyncError, run_sync
 
         logger = get_logger()
@@ -47,7 +48,7 @@ class SyncWorker(QtCore.QThread):
                 config_path=self.config_path,
             )
             self.finished_ok.emit(stats)
-        except SyncError as exc:
+        except (SyncError, ImportError_) as exc:
             self.failed.emit(str(exc))
         except Exception as exc:  # pragma: no cover - defensive
             logger.exception("Unexpected error during sync")

@@ -139,3 +139,31 @@ def test_log_level_override_is_applied(tmp_path, base_config):
     save_config(base_config, path)
     cli.main(["--config", str(path), "--log-level", "DEBUG", "config", "path"])
     assert logging.getLogger("nishizumi_sync").level == logging.DEBUG
+
+
+def test_import_errors_are_reported_without_a_traceback(tmp_path, base_config, iracing, capsys):
+    """A RAR without rarfile, or a broken archive, is a user error not a crash."""
+    archive = tmp_path / "pack.rar"
+    archive.write_bytes(b"not really a rar")
+    base_config.update({"source_type": "zip", "zip_file": str(archive)})
+    path = tmp_path / "cfg.json"
+    save_config(base_config, path)
+    assert cli.main(["--config", str(path), "--no-update-check", "run"]) == cli.EXIT_ERROR
+
+
+def test_dry_run_never_installs_an_update(monkeypatch, tmp_path, base_config):
+    base_config["updates"] = {"check_on_startup": True, "check_interval_hours": 0, "auto_install": True}
+    path = tmp_path / "cfg.json"
+    save_config(base_config, path)
+
+    from nishizumi_sync.updater import UpdateInfo
+
+    info = UpdateInfo.from_api({"tag_name": "v9.9.9", "name": "R", "body": "", "html_url": ""})
+    monkeypatch.setattr("nishizumi_sync.updater.Updater.check", lambda self, **kw: info)
+    monkeypatch.setattr("nishizumi_sync.updater.Updater.due_for_check", lambda self, **kw: True)
+
+    def boom(self, info, **kwargs):
+        raise AssertionError("a dry run must not install anything")
+
+    monkeypatch.setattr("nishizumi_sync.updater.Updater.install", boom)
+    assert cli.main(["--config", str(path), "dry-run"]) == cli.EXIT_OK

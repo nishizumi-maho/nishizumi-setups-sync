@@ -140,6 +140,7 @@ def _confirm(question: str, *, assume_yes: bool = False) -> bool:
 # ---------------------------------------------------------------------------
 
 def _cmd_run(args, cfg, logger, config_path) -> int:
+    from .importer import ImportError_
     from .sync import SyncError, run_sync
 
     dry_run = bool(getattr(args, "dry_run", False)) or args.command == "dry-run"
@@ -148,7 +149,7 @@ def _cmd_run(args, cfg, logger, config_path) -> int:
         stats = run_sync(
             cfg, logger, dry_run=dry_run, on_unknown_folder=handler, config_path=config_path
         )
-    except SyncError as exc:
+    except (SyncError, ImportError_) as exc:
         logger.error("%s", exc)
         return EXIT_ERROR
     print(stats.summary())
@@ -310,8 +311,8 @@ def _cmd_tray(cfg, logger, config_path) -> int:
     return run_tray(cfg, logger, config_path=config_path)
 
 
-def _startup_update_check(cfg: dict, logger: logging.Logger) -> None:
-    """Best-effort background-ish check used by the non-GUI commands."""
+def _startup_update_check(cfg: dict, logger: logging.Logger, *, allow_install: bool = True) -> None:
+    """Best-effort check used by the non-GUI commands."""
     from .updater import Updater
 
     updater = Updater(cfg, logger)
@@ -323,7 +324,7 @@ def _startup_update_check(cfg: dict, logger: logging.Logger) -> None:
     info = updater.check()
     if info is None:
         return
-    if updater.settings.get("auto_install"):
+    if updater.settings.get("auto_install") and allow_install:
         logger.info("Installing update %s automatically", info.version)
         result = updater.install(info)
         logger.info("%s", result.message)
@@ -358,7 +359,8 @@ def main(argv: list[str] | None = None) -> int:
         args.command = command
 
     if command in {"run", "dry-run", "tray"} and not args.no_update_check:
-        _startup_update_check(cfg, logger)
+        simulating = command == "dry-run" or bool(getattr(args, "dry_run", False))
+        _startup_update_check(cfg, logger, allow_install=not simulating)
 
     try:
         if command in {"run", "dry-run"}:
