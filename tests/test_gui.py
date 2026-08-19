@@ -153,3 +153,18 @@ def test_stats_message_mentions_dry_run():
 
     assert "nothing was changed" in make_stats_message(SyncStats(), dry_run=True)
     assert "Sync finished" in make_stats_message(SyncStats(), dry_run=False)
+
+
+def test_join_workers_waits_for_a_running_thread(window, base_config, iracing, make_file):
+    """Qt tears down a running QThread noisily; the window must join them first."""
+    make_file(iracing / "ferrari296gt3" / "Private" / "fast.sto")
+    worker = SyncWorker(config.migrate(base_config), None, dry_run=True)
+    worker.start()
+    window.worker = worker
+
+    window.join_workers(timeout_ms=10000)
+    assert not worker.isRunning()
+
+
+def test_join_workers_is_a_no_op_when_idle(window):
+    window.join_workers(timeout_ms=100)  # must not raise or block

@@ -952,7 +952,15 @@ class MainWindow(QtWidgets.QMainWindow):
                 event.ignore()
                 return
             self.worker.requestInterruption()
+        self.join_workers()
         event.accept()
+
+    def join_workers(self, timeout_ms: int = 3000) -> None:
+        """Wait for the background threads so Qt does not tear them down
+        mid-flight ("QThread: destroyed while thread is still running")."""
+        for worker in (self.worker, self.update_worker, self.install_worker):
+            if worker is not None and worker.isRunning():
+                worker.wait(timeout_ms)
 
 
 def _escape(text: str) -> str:
