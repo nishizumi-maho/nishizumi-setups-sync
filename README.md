@@ -2,498 +2,250 @@
 
 ![Icon](icon.png)
 
-**Versão:** 1.1.0-fullgui
+**Version 2.0.0** · [Download the latest release](https://github.com/nishizumi-maho/Nishizumi-Sync/releases/latest)
 
-[**Download the latest release here**](https://github.com/nishizumi-maho/nishizumi-setups-sync/releases/latest)
+Imports iRacing setups from a supplier's archive or folder and keeps your
+personal, team and per-driver folders synchronised — from a desktop interface,
+from the command line, or quietly in the system tray.
 
-## Setup Manager
+---
 
-This repository provides Python script `nishizumi_setups_sync.py` to copy and synchronize iRacing setup files with advanced features including GUI, profiles, and automatic updates.
+## What it does
 
-## Features
+For every car folder inside your iRacing setups directory, the tool maintains
+this structure:
 
-### Core Functionality
-- **Multiple Import Modes**: Import setups from ZIP/RAR archives, folders, or skip importing entirely
-- **Smart Car Detection**: Automatically identifies car folders with customizable mapping
-- **Bidirectional Sync**: Synchronizes setups between source and destination folders
-- **Profile System**: Store multiple configurations and switch between them easily
-- **Dry-Run Mode**: Preview all operations without making any changes
+```
+<iRacing setups>/
+└── ferrari296gt3/                 ← one folder per car, named by iRacing
+    ├── Personal/                  ← your own copy (personal_folder)
+    │   └── <supplier>/<season>/   ← what the import writes
+    ├── Team/                      ← the team copy (team_folder)
+    ├── Private/                   ← the sync source (sync_source)
+    │   ├── Common Setups/         ← shared baseline, driver mode only
+    │   └── Drivers/<name>/        ← one folder per driver
+    └── Shared/                    ← the sync destination (sync_destination)
+```
 
-### Import & Sync
-- Customizable team, personal, supplier, and season folder names per profile
-- Works with any setup supplier - just select their folder or archive
-- NASCAR support: automatically syncs Cup, Xfinity, and Trucks variants
-- Super Formula support: syncs Honda and Toyota variants
-- Data packs synchronization across car variants
-- Optional extra folders from third-party sync tools (configurable location: car root or destination)
+**Import** puts a supplier's setups into the personal and team folders.
+**Sync** publishes the source folder into the destination folder, filling in each
+driver's folder and falling back to *Common Setups* for drivers who have none.
 
-### Driver Management
-- **Driver Folders**: Create per-driver setups with Common Setups fallback
-- **Garage61 Integration**: Automatically fetch and sync driver lists from Garage61 API
-- **Manual Driver Management**: Add/remove drivers through GUI or configuration
-- Automatic cleanup of unknown driver folders
+Cars that share setups — the three NASCAR classes and the two Super Formula
+SF23 variants — are kept identical automatically.
 
-### Advanced Features
-- **Backup System**: Create backups before and/or after sync operations
-- **Logging**: Comprehensive logging with configurable levels (DEBUG, INFO, WARN, ERROR)
-- **Tray Mode**: Run in system tray with automatic periodic syncing
-- **Auto-Update**: Built-in update checker and installer
-- **Custom Car Mapping Editor**: GUI tool to manage folder name mappings
-- **File Filtering**: Copy only `.sto` files or all file types
-- **Plugin Support**: Extensible via hooks (before_sync/after_sync)
+## Installing
 
-## Installation
+Grab the executable from the [releases page](https://github.com/nishizumi-maho/Nishizumi-Sync/releases/latest)
+and run it. Nothing else is required; it updates itself.
 
-### Requirements
-- Python 3.9 or later
-- Required dependencies:
+To run from source you need Python 3.9 or newer:
 
 ```bash
+git clone https://github.com/nishizumi-maho/Nishizumi-Sync.git
+cd Nishizumi-Sync
 pip install -r requirements.txt
-```
-
-**Dependencies:**
-- `PySide6` - For GUI (optional but recommended)
-- `requests` - For Garage61 integration and updates (optional)
-- `rarfile` - For RAR archive support (optional)
-
-## Usage
-
-### GUI Mode (Default)
-
-Simply run the script to open the graphical interface:
-
-```bash
 python nishizumi_setups_sync.py
-# or
-python nishizumi_setups_sync.py gui
 ```
 
-### Command Line Interface
+Every dependency is optional and the application degrades gracefully:
 
-The tool supports multiple commands:
+| Package   | Needed for                     | Without it                                   |
+|-----------|--------------------------------|----------------------------------------------|
+| `PySide6` | the graphical interface        | the command line still works                 |
+| `requests`| faster network calls           | falls back to the standard library           |
+| `rarfile` | importing `.rar` archives      | `.zip` archives still import                 |
+
+## First run
+
+1. Start the application. Without arguments it opens the interface.
+2. **Import tab** — pick your iRacing setups folder (usually
+   `Documents\iRacing\setups`), choose whether you import from an archive, from
+   a folder, or not at all, and fill in the four folder *names* (team, personal,
+   supplier, season). These are names, not paths: they are created inside each
+   car folder.
+3. **Sync tab** — set the sync source (the folder you edit) and the sync
+   destination (the folder you share). They must differ.
+4. **Drivers tab** — optional. Enable per-driver folders and add drivers by
+   hand, or let Garage 61 fetch the list of your team.
+5. Press **Dry run** to see exactly what would happen, then **Run now**.
+
+Settings are saved in `user_config.json` next to the application. If that folder
+is read-only, everything moves to your user data directory instead; set
+`NISHIZUMI_SYNC_HOME` to choose the location yourself.
+
+## Command line
 
 ```bash
-# Run sync with current configuration
-python nishizumi_setups_sync.py run
-
-# Dry-run mode (preview without making changes)
-python nishizumi_setups_sync.py dry-run
-# or
-python nishizumi_setups_sync.py run --dry-run
-
-# Import archive or folder
-python nishizumi_setups_sync.py import /path/to/setups.zip
-python nishizumi_setups_sync.py import /path/to/setups_folder
-
-# Check for updates
-python nishizumi_setups_sync.py check-update
-
-# Apply available update
-python nishizumi_setups_sync.py update
-
-# Force GUI mode (even if run_on_startup is enabled)
-python nishizumi_setups_sync.py gui
+nishizumi-sync                       # open the interface (default)
+nishizumi-sync run                   # import and sync using the saved settings
+nishizumi-sync run --dry-run         # or: nishizumi-sync dry-run
+nishizumi-sync import path/to/pack.zip
+nishizumi-sync import setups/ --ask  # prompt for unrecognised car folders
+nishizumi-sync tray                  # stay resident and sync on a timer
+nishizumi-sync check-update
+nishizumi-sync update --yes
+nishizumi-sync config show|path|export FILE|reset
+nishizumi-sync mapping list|set FOLDER CAR|remove FOLDER
 ```
 
-### Running Silently
+Global flags: `--config PATH`, `--log-level DEBUG|INFO|WARN|ERROR`,
+`--no-update-check`, `--version`.
 
-For automation or startup scripts:
+Running from a checkout uses `python nishizumi_setups_sync.py <command>` or
+`python -m nishizumi_sync <command>`. The 1.x flags `--silent`, `--gui` and
+`--tray` still work.
 
-```bash
-# Run with saved options without showing UI
-python nishizumi_setups_sync.py run
+On Windows, `pythonw.exe nishizumi_setups_sync.py run` runs without a console
+window — put a shortcut to it in `shell:startup` and tick *"Run silently when
+started without a console"* to sync at every login.
 
-# On Windows, use pythonw.exe to run without console window
-pythonw.exe nishizumi_setups_sync.py run
-```
+## Updates
 
-### Tray Mode
-
-Stay running in the background and sync periodically:
-
-```bash
-python nishizumi_setups_sync.py run  # with tray_mode enabled in config
-```
-
-Or enable "Stay in tray and rescan periodically" in the GUI.
-
-## Configuration
-
-Settings are stored in `user_config.json` with the following structure:
-
-### Basic Settings
-- `iracing_folder` - Path to iRacing setups folder
-- `source_type` - Import mode: "zip", "folder", or "none"
-- `zip_file` - Path to archive when using zip mode
-- `source_folder` - Path to source when using folder mode
-
-### Profile System
-- `profiles` - Array of profile configurations
-- `active_profile` - Index of currently active profile (0-based)
-
-Each profile contains:
-- `team_folder` - Team destination folder name
-- `personal_folder` - Personal source folder name
-- `supplier_folder` - Setup supplier subfolder name
-- `season_folder` - Season subfolder name
-
-### Sync Settings
-- `sync_source` - Source folder to copy from
-- `sync_destination` - Destination folder to copy to
-- `hash_algorithm` - "md5" or "sha256" for file comparison
-- `copy_all` - Copy all files (true) or only .sto files (false)
-
-### Driver Settings
-- `use_driver_folders` - Enable driver-specific folders
-- `drivers` - Array of driver names
-- `use_garage61` - Enable Garage61 API integration
-- `garage61_team_id` - Team ID for Garage61
-- `garage61_api_key` - API key for Garage61
-
-### Extra Folders
-- `use_external` - Enable extra sync folders
-- `extra_folders` - Array of folder definitions with:
-  - `name` - Folder name
-  - `location` - "car" (car root) or "dest" (inside destination)
-
-### Backup & Logging
-- `backup_enabled` - Enable backup system
-- `backup_before_folder` - Backup location before sync
-- `backup_after_folder` - Backup location after sync
-- `enable_logging` - Enable file logging
-- `log_file` - Path to log file
-
-### Automation
-- `run_on_startup` - Run silently on startup
-- `tray_mode` - Stay in system tray
-- `tray_interval` - Hours between automatic syncs
-
-## How to Use
-
-### First-Time Setup
-
-1. **Launch the GUI:**
-   ```bash
-   python nishizumi_setups_sync.py
-   ```
-
-2. **Configure iRacing Folder:**
-   - Click "Browse" next to "iRacing Setups Folder"
-   - Select your iRacing setups directory (typically `Documents\iRacing\setups`)
-
-3. **Choose Import Mode:**
-   - **zip** - Import from ZIP/RAR archive
-   - **folder** - Import from existing folder
-   - **none** - Skip import, only sync existing files
-
-4. **Set Up Profile:**
-   - Fill in folder names (names only, not paths):
-     - Team Folder Name (destination)
-     - Personal Folder Name (source)
-     - Supplier/Driver Folder
-     - Season Folder
-
-5. **Configure Sync:**
-   - Sync Source (copy from) - e.g., "Private"
-   - Sync Destination (copy to) - e.g., "Shared"
-
-6. **Optional: Enable Driver Folders**
-   - Check "Manually enter drivers" to add driver names
-   - Or enable "Use Garage61 API" with your team credentials
-
-7. **Save and Run:**
-   - Click "Save Config" to store settings
-   - Click "Run Now" to execute sync
-
-### Working with Profiles
-
-Profiles allow you to maintain different configurations:
-
-- **Create Profile**: Add a new entry in the profiles array
-- **Switch Profile**: Change `active_profile` to the desired index
-- **Profile Contents**: Each profile stores team, personal, supplier, and season folder names
-
-### Extra Folders
-
-Configure additional folders for third-party sync tools:
-
-1. Enable "Use extra sync folders"
-2. Click "Add Extra Folder"
-3. Enter folder name
-4. Choose location:
-   - **car** - Folder exists at car root level
-   - **dest** - Folder exists inside sync destination
-
-### Custom Car Mapping
-
-If the tool doesn't recognize a car folder:
-
-1. It will prompt you during import (GUI mode)
-2. Your choice is saved to `custom_car_mapping.json`
-3. Use "Edit Car Mapping" in GUI to review/modify mappings
-
-### Example Configuration
+The application checks GitHub Releases for a newer version, at most once every
+24 hours by default, and offers to install it. You decide how it behaves in the
+**Updates tab** or in the `updates` section of `user_config.json`:
 
 ```json
-{
-  "iracing_folder": "C:\\Users\\YourName\\Documents\\iRacing\\setups",
-  "source_type": "zip",
-  "zip_file": "C:\\Downloads\\FastSetups_2025S1.zip",
-  "backup_enabled": true,
-  "backup_before_folder": "D:\\Backups\\SetupsBackup",
-  "backup_after_folder": "D:\\Backups\\SetupsAfter",
-  "active_profile": 0,
-  "profiles": [
-    {
-      "team_folder": "MyTeam",
-      "personal_folder": "DriverOne",
-      "supplier_folder": "FastSetups",
-      "season_folder": "2025S1"
-    }
-  ],
-  "sync_source": "Private",
-  "sync_destination": "Shared",
-  "use_driver_folders": true,
-  "drivers": ["John Doe", "Jane Smith"],
-  "extra_folders": [
-    {"name": "CrewChief", "location": "car"},
-    {"name": "Telemetry", "location": "dest"}
-  ],
-  "copy_all": false,
-  "enable_logging": true
+"updates": {
+    "check_on_startup": true,
+    "check_interval_hours": 24,
+    "auto_install": false,
+    "channel": "stable",
+    "repository": "nishizumi-maho/Nishizumi-Sync"
 }
 ```
 
-## Interface Guide
+- `channel` — `"stable"` or `"prerelease"`.
+- `check_interval_hours` — `0` checks at every start.
+- `auto_install` — download and install without asking.
 
-### Main Window
+Downloads are verified against the SHA-256 checksum published with the release.
+How the update is applied depends on how you installed the program:
 
-- **iRacing Setups Folder** - Full path to iRacing setups directory
-- **Import Mode** - Select zip, folder, or none
-- **Archive/Folder to import** - Path to source (shown based on import mode)
-- **Profile Settings** - Current profile configuration
-- **Sync Settings** - Source and destination folder names
-- **Extra Folders** - Additional sync folders with location control
-- **Hash Algorithm** - md5 or sha256 for file comparison
-- **Copy everything** - Include all file types, not just .sto
+| Installation      | What happens                                                        |
+|-------------------|---------------------------------------------------------------------|
+| Release executable| The new build is downloaded, swapped in after the app exits, and restarted. |
+| Source archive    | The `nishizumi_sync` package is replaced; restart the application.   |
+| Git checkout      | You are told to `git pull` — your work is never overwritten.         |
+| `pip install`     | You are told to `pip install --upgrade`.                             |
 
-### Driver Folders Section
+You can skip a version ("Skip this version") and it will not be offered again
+until a newer one appears.
 
-- **Use Garage61 API for drivers** - Automatic driver list management
-  - Garage61 Team ID
-  - Garage61 API Key
-- **Manually enter drivers** - Manual driver list management
-  - Add Driver button
-  - Remove Selected button
-  - Driver list display
+## Configuration reference
 
-### Backup & Logging
+| Key | Meaning |
+|-----|---------|
+| `iracing_folder` | Full path to the iRacing setups folder |
+| `source_type` | `zip`, `folder` or `none` |
+| `zip_file` / `source_folder` | What to import, for the matching mode |
+| `profiles` / `active_profile` | Named sets of team/personal/supplier/season names |
+| `team_folder`, `personal_folder`, `supplier_folder`, `season_folder` | The active profile's folder names |
+| `sync_source` / `sync_destination` | Folder names to copy from and to |
+| `hash_algorithm` | `md5` or `sha256` for comparing files |
+| `copy_all` | Copy every file type, not just `.sto` |
+| `delete_extras` | Remove destination files that no longer exist in the source |
+| `use_driver_folders` / `drivers` | Per-driver folders and the driver list |
+| `use_garage61`, `garage61_team_id`, `garage61_api_key` | Garage 61 driver lookup |
+| `use_external` / `extra_folders` | Folders from other tools to merge into the source |
+| `backup_enabled`, `backup_before_folder`, `backup_after_folder` | Backups around each run |
+| `enable_logging`, `log_file`, `log_level` | File logging |
+| `run_on_startup`, `tray_mode`, `tray_interval` | Automation |
+| `enable_plugins` | Run the `before_sync` / `after_sync` hooks |
+| `updates` | See above |
 
-- **Enable backup** - Create backups before/after sync
-  - Backup (before) - Pre-sync backup location
-  - Backup (after) - Post-sync backup location
-- **Enable logging to file** - Write operations to log file
-  - Log file path
+The Garage 61 API key is stored in plain text — keep `user_config.json` private.
 
-### Automation
+### Extra folders
 
-- **Run silently on startup** - Execute without GUI when launched
-- **Stay in tray and rescan** - Background mode with periodic sync
-  - Interval in hours
+Tools such as Garage 61 write into their own folder. Add them under
+*Sync → Extra folders* so their setups join the sync:
 
-### Buttons
+- **Car root** — the folder sits next to `Personal`/`Team` (e.g. `<car>/Garage 61`).
+  Its contents are merged into the sync source and the original is left alone.
+- **Sync destination** — the folder sits inside the destination and works as an
+  inbox: its contents are moved into the source and the folder is removed.
 
-- **Save Config** - Store settings without running
-- **Run Now** - Save settings and execute sync
-- **Check for Updates** - Download latest version if available
+### Car mapping
 
-## Running Silently on Windows Startup
+Supplier folders such as `03 - Ferrari GT3` are matched to iRacing car folders
+automatically, including group folders like `NASCAR Trucks`, which import into
+every variant. Anything unrecognised is reported; the interface asks which car
+it belongs to and remembers the answer in `custom_car_mapping.json`. Edit the
+list under *Tools → Edit car mapping*, or with `nishizumi-sync mapping set`.
 
-To run automatically at system startup:
+### Plugins
 
-### Method 1: Using Python Script
-
-1. Enable "Run silently on startup" in the GUI
-2. Create a shortcut:
-   ```
-   pythonw.exe "C:\path\to\nishizumi_setups_sync.py" run
-   ```
-3. Place shortcut in Startup folder:
-   - Press `Win + R`
-   - Type `shell:startup`
-   - Paste shortcut
-
-### Method 2: Using Compiled EXE
-
-1. Create a shortcut to the EXE
-2. Add command-line argument if needed: `nishizumi_setups_sync.exe run`
-3. Place in Startup folder
-
-### Method 3: Task Scheduler (Advanced)
-
-1. Open Task Scheduler
-2. Create Basic Task
-3. Trigger: At log on
-4. Action: Start a program
-5. Program: `pythonw.exe` or `nishizumi_setups_sync.exe`
-6. Arguments: `run`
-7. Check "Run whether user is logged on or not"
-
-## Dry-Run Mode
-
-Preview all operations without making changes:
-
-```bash
-# Command line
-python nishizumi_setups_sync.py dry-run
-
-# Or
-python nishizumi_setups_sync.py run --dry-run
-```
-
-All operations will be logged with `[DRY-RUN]` prefix, showing what would happen without modifying any files.
-
-## Building a Windows EXE
-
-Create a standalone executable using PyInstaller:
-
-### Prerequisites
-
-1. Install Python 3.9+
-2. Install PyInstaller:
-   ```bash
-   pip install pyinstaller
-   ```
-
-### Build Process
-
-```bash
-# Single-file executable
-pyinstaller --onefile --windowed nishizumi_setups_sync.py
-
-# With icon (if available)
-pyinstaller --onefile --windowed --icon=icon.ico nishizumi_setups_sync.py
-```
-
-The executable will be in the `dist` folder. Configuration is stored in `user_config.json` next to the `.exe`.
-
-### Build Options
-
-- `--onefile` - Single executable file
-- `--windowed` - No console window (GUI only)
-- `--icon=icon.ico` - Custom application icon
-- `--name="Nishizumi Sync"` - Custom executable name
-
-## Troubleshooting
-
-### GUI Won't Start
-
-- **Missing PySide6**: Install with `pip install PySide6`
-- **No display available**: Script automatically falls back to CLI mode
-
-### Import Not Working
-
-- **Archive not recognized**: Ensure `rarfile` is installed for RAR support
-- **Car folder not mapped**: Use GUI to map unknown folders or edit `custom_car_mapping.json`
-
-### Garage61 Integration Issues
-
-- **Missing requests**: Install with `pip install requests`
-- **API errors**: Verify team ID and API key in configuration
-- **Driver list not updating**: Check network connection and API credentials
-
-### Sync Not Working
-
-- **Folders not found**: Ensure folder names are correct (names only, not paths)
-- **Nothing being copied**: Check if `copy_all` is disabled and source contains only non-.sto files
-- **Driver folders not created**: Enable `use_driver_folders` in configuration
-
-### Logging
-
-Enable logging to troubleshoot issues:
-
-1. Check "Enable logging to file" in GUI
-2. Specify log file path
-3. Run sync operation
-4. Review log file for detailed operation history
-
-## Advanced Usage
-
-### Plugin System
-
-Create hooks in `plugins` folder (if supported in your installation):
+With `enable_plugins` on, `before_sync.py` and `after_sync.py` in the `plugins`
+folder (next to `user_config.json`) are executed:
 
 ```python
 # plugins/before_sync.py
 def execute(config, logger):
-    logger.info("Running before sync hook")
-    # Your custom code here
-
-# plugins/after_sync.py
-def execute(config, logger):
-    logger.info("Running after sync hook")
-    # Your custom code here
+    logger.info("about to sync %s", config["iracing_folder"])
 ```
 
-### Custom Car Mapping
+They run with your permissions, which is why they are off by default.
 
-Edit `custom_car_mapping.json`:
+## Building an executable
 
-```json
-{
-  "my custom folder name": "iracing_car_folder_name",
-  "another folder": "dallarair18"
-}
+```bash
+pip install -r requirements-dev.txt
+python scripts/build_exe.py
 ```
 
-Keys are lowercase source folder names, values are iRacing car folder names.
+The binary lands in `dist/` named `NishizumiSync-windows.exe`,
+`NishizumiSync-linux` or `NishizumiSync-macos` — the naming the in-app updater
+looks for. Pushing a `v*` tag runs the same build in CI and publishes the
+release automatically.
 
-### Custom configuration files
+## Development
 
-You can now load or export configuration presets directly from the GUI using the
-"Load config…" and "Export current config…" buttons. The "Reset to defaults"
-option reverts every setting to the built-in template. To run the CLI with a
-specific configuration file, pass `--config /path/to/custom_config.json`.
-
-### Programmatic Usage
-
-Use as a module in your own scripts:
-
-```python
-from nishizumi_setups_sync import load_config, run_silent, Logger
-
-config = load_config()
-logger = Logger(config)
-
-# Modify config as needed
-config["iracing_folder"] = "/path/to/setups"
-
-# Run sync
-run_silent(config, logger, dry_run=False)
+```bash
+pip install -r requirements-dev.txt
+pytest -q
+flake8 . --max-line-length=127 --max-complexity=15
 ```
 
-## Support
+Layout:
 
-For issues, feature requests, or contributions, visit the [GitHub repository](https://github.com/nishizumi-maho/nishizumi-setups-sync).
+```
+nishizumi_sync/
+├── cli.py          command line entry point
+├── config.py       loading, migration, profiles, atomic saves
+├── cars.py         car aliases, groups, folder → car resolution
+├── fileops.py      dry-run aware copy/delete primitives and statistics
+├── sync.py         the synchronisation pipeline
+├── importer.py     archive and folder import (with Zip Slip protection)
+├── updater.py      GitHub release checks and installation
+├── garage61.py     driver lookup
+├── plugins.py      before_sync / after_sync hooks
+├── http.py         requests, with a standard library fallback
+├── logs.py         logging setup
+├── paths.py        where configuration and data live
+└── gui/            PySide6 interface, tray mode and worker threads
+```
+
+## Troubleshooting
+
+**The interface does not open.** Install PySide6 (`pip install PySide6`). Without
+it the command line still works.
+
+**Nothing is imported.** Check the output panel: folders that cannot be matched
+to a car are listed by name. Map them under *Tools → Edit car mapping*.
+
+**RAR archives fail.** Install `rarfile` and an `unrar` binary, or extract the
+archive yourself and import the folder.
+
+**Update check fails.** GitHub rate-limits unauthenticated requests; set the
+`GITHUB_TOKEN` environment variable, or wait and try again. Use
+`--no-update-check` to skip it entirely.
+
+**Something was deleted that should not have been.** Turn off *"Remove files in
+the destination that no longer exist in the source"* in the Sync tab, and always
+use **Dry run** first when changing folder names.
 
 ## License
 
-[Add your license information here]
-
-## Changelog
-
-### Version 1.1.0-fullgui
-- Added full PySide6 GUI with enhanced features
-- Implemented profile system for multiple configurations
-- Added dry-run mode for operation preview
-- Enhanced CLI with subcommands (run, import, check-update, update, dry-run, gui)
-- Added custom car mapping editor
-- Improved driver folder management with GUI editor
-- Added extra folders UI with location control (car/dest)
-- Enhanced logging with configurable levels
-- Added tray mode for background operation
-- Improved update check and auto-update functionality
-- Added plugin/hooks support (before_sync/after_sync)
-- Better error handling and user feedback
-- Backwards-compatible configuration format
+MIT — see [LICENSE](LICENSE).

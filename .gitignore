@@ -1,5 +1,26 @@
 __pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
 
-# Local configuration files
+# Build output
+build/
+dist/
+*.spec
+icon.ico
+icon.icns
+
+# Test and tooling caches
+.pytest_cache/
+.coverage
+htmlcov/
+.venv/
+venv/
+
+# Local runtime files
 user_config.json
+user_config.json.corrupt-*
 custom_car_mapping.json
+update_state.json
+nishizumi_setups_sync.log*
+plugins/

@@ -1,0 +1,112 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Tag to build and publish (e.g. v2.0.0)"
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  verify:
+    name: Verify version
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.resolve.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - id: resolve
+        name: Resolve the tag
+        run: echo "tag=${{ github.event.inputs.tag || github.ref_name }}" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: The tag must match __version__
+        run: python scripts/check_version.py "${{ steps.resolve.outputs.tag }}"
+
+      - name: Run the test suite
+        run: |
+          python -m pip install --upgrade pip
+          pip install pytest requests
+          pytest -q
+
+  build:
+    name: Build ${{ matrix.label }}
+    needs: verify
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            label: windows
+          - os: ubuntu-latest
+            label: linux
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.verify.outputs.tag }}
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pyinstaller pillow
+
+      - name: Build the executable
+        run: python scripts/build_exe.py
+
+      - name: Upload the artefact
+        uses: actions/upload-artifact@v4
+        with:
+          name: NishizumiSync-${{ matrix.label }}
+          path: dist/NishizumiSync-*
+          if-no-files-found: error
+
+  publish:
+    name: Publish the release
+    needs: [verify, build]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.verify.outputs.tag }}
+
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
+
+      - name: Collect the files and checksums
+        run: |
+          mkdir -p release
+          find artifacts -type f -exec cp {} release/ \;
+          cd release
+          sha256sum * > SHA256SUMS
+          cat SHA256SUMS
+
+      - name: Write the release notes
+        run: python scripts/release_notes.py "${{ needs.verify.outputs.tag }}" > release-notes.md
+
+      - name: Create the GitHub release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create "${{ needs.verify.outputs.tag }}" \
+            --title "Nishizumi Setups Sync ${{ needs.verify.outputs.tag }}" \
+            --notes-file release-notes.md \
+            release/*
