@@ -1,3 +1,7 @@
-requests
-PySide6
-rarfile
+# Runtime dependencies.
+# The application degrades gracefully: without PySide6 the CLI still works,
+# without rarfile only ZIP archives can be imported, and update checks fall back
+# to the standard library when requests is absent.
+PySide6>=6.5
+requests>=2.28
+rarfile>=4.0
