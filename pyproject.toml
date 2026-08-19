@@ -36,6 +36,9 @@ version = { attr = "nishizumi_sync.__version__" }
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-q"
+# Make the package importable when pytest is invoked directly (a bare `pytest`
+# does not put the working directory on sys.path the way `python -m pytest` does).
+pythonpath = ["."]
 
 [tool.flake8]
 max-line-length = 127
