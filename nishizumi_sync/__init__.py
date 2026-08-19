@@ -12,7 +12,7 @@ __all__ = [
     "PROJECT_URL",
 ]
 
-__version__ = "2.0.0"
+__version__ = "3.0.0"
 
 APP_NAME = "Nishizumi Setups Sync"
 APP_SLUG = "nishizumi-sync"

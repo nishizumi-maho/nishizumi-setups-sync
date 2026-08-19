@@ -2,7 +2,7 @@
 
 ![Icon](icon.png)
 
-**Version 2.0.0** · [Download the latest release](https://github.com/nishizumi-maho/Nishizumi-Sync/releases/latest)
+**Version 3.0.0** · [Download the latest release](https://github.com/nishizumi-maho/Nishizumi-Sync/releases/latest)
 
 Imports iRacing setups from a supplier's archive or folder and keeps your
 personal, team and per-driver folders synchronised — from a desktop interface,

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Extract one version's section from CHANGELOG.md.
 
-    python scripts/release_notes.py 2.0.0 > notes.md
+    python scripts/release_notes.py 3.0.0 > notes.md
 """
 
 from __future__ import annotations
