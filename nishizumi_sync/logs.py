@@ -11,6 +11,7 @@ from __future__ import annotations
 import logging
 import logging.handlers
 import os
+import sys
 from pathlib import Path
 from typing import Callable, Iterable
 
@@ -61,10 +62,16 @@ def get_logger(name: str = LOGGER_NAME) -> logging.Logger:
     if not getattr(logger, "_nishizumi_configured", False):
         logger.setLevel(logging.INFO)
         logger.propagate = False
-        handler = logging.StreamHandler()
-        handler.setFormatter(logging.Formatter(_FORMAT, _DATE_FORMAT))
-        handler.set_name("console")
-        logger.addHandler(handler)
+        # A windowed PyInstaller build has no stderr at all; attaching a stream
+        # handler to it would make every log call fail silently.
+        stream = sys.stderr if sys.stderr is not None else sys.stdout
+        if stream is not None:
+            handler = logging.StreamHandler(stream)
+            handler.setFormatter(logging.Formatter(_FORMAT, _DATE_FORMAT))
+            handler.set_name("console")
+            logger.addHandler(handler)
+        else:
+            logger.addHandler(logging.NullHandler())
         logger._nishizumi_configured = True  # type: ignore[attr-defined]
     return logger
 

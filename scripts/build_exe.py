@@ -69,6 +69,7 @@ def build(name: str | None = None, *, clean: bool = True) -> Path:
         "--clean",
         "--name", output_name,
         "--add-data", f"{ICON_PNG}{separator}.",
+        "--paths", str(ROOT),
         "--collect-submodules", "nishizumi_sync",
     ]
     if sys.platform.startswith("win") or sys.platform == "darwin":

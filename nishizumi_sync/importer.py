@@ -13,7 +13,7 @@ import shutil
 import tempfile
 import zipfile
 from pathlib import Path
-from typing import Callable, Sequence
+from typing import Callable, Optional, Sequence
 
 from .cars import clean_name, identify_setup, load_custom_mapping, normalise, save_custom_mapping
 from .fileops import FileOps, iter_dirs
@@ -28,7 +28,9 @@ ZIP_SUFFIXES = (".zip",)
 RAR_SUFFIXES = (".rar",)
 
 #: Callback invoked for folders that cannot be mapped to a car.
-UnknownFolderHandler = Callable[[str], str | None]
+#: Written with Optional because this alias is evaluated at import time and the
+#: project supports Python 3.9, where PEP 604 unions do not exist yet.
+UnknownFolderHandler = Callable[[str], Optional[str]]
 
 
 class ImportError_(Exception):

@@ -119,3 +119,19 @@ def test_urllib_fallback_is_used_when_requests_is_missing(monkeypatch, tmp_path)
     target = tmp_path / "out.bin"
     http.download("https://example.invalid", target)
     assert target.read_bytes() == b"hello"
+
+
+def test_logger_survives_a_windowed_build_without_streams(monkeypatch):
+    """PyInstaller --windowed leaves sys.stderr and sys.stdout as None."""
+    import logging as std_logging
+
+    from nishizumi_sync import logs
+
+    monkeypatch.setattr(logs.sys, "stderr", None)
+    monkeypatch.setattr(logs.sys, "stdout", None)
+    name = "nishizumi_sync.test_windowed"
+    std_logging.Logger.manager.loggerDict.pop(name, None)
+
+    logger = logs.get_logger(name)
+    assert any(isinstance(h, std_logging.NullHandler) for h in logger.handlers)
+    logger.info("this must not raise")
