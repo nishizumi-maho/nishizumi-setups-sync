@@ -3,7 +3,7 @@
 All notable changes to this project are documented here.
 This project follows [Semantic Versioning](https://semver.org/).
 
-## 2.0.0
+## 3.0.0
 
 A full review and rewrite of the application. The behaviour you rely on is
 unchanged, but the code is now split into modules, covered by tests, and the
@@ -84,6 +84,11 @@ update system actually works.
 - `requests` is optional everywhere: update checks and Garage 61 fall back to
   the standard library.
 - Removed `OLD_nishizumi_setups_sync.py` and the extension-less `v2` script.
+
+## 2.0.0
+
+Released from the previous single-file script (tagged `V2.0.0`). Superseded by
+3.0.0, which is where the review below applies.
 
 ## 1.1.0-fullgui
 

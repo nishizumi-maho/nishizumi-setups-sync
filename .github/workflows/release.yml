@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: "Tag to build and publish (e.g. v2.0.0)"
+        description: "Tag to build and publish (e.g. v3.0.0)"
         required: true
 
 permissions:
@@ -54,7 +54,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ needs.verify.outputs.tag }}
+          ref: ${{ github.sha }}
 
       - uses: actions/setup-python@v5
         with:
@@ -84,7 +84,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ needs.verify.outputs.tag }}
+          ref: ${{ github.sha }}
 
       - uses: actions/download-artifact@v4
         with:
@@ -107,6 +107,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           gh release create "${{ needs.verify.outputs.tag }}" \
+            --target "${{ github.sha }}" \
             --title "Nishizumi Setups Sync ${{ needs.verify.outputs.tag }}" \
             --notes-file release-notes.md \
             release/*

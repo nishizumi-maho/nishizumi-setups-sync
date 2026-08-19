@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Fail when a git tag does not match nishizumi_sync.__version__.
 
-    python scripts/check_version.py v2.0.0
+    python scripts/check_version.py v3.0.0
 """
 
 from __future__ import annotations
